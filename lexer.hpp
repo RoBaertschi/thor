@@ -24,6 +24,7 @@ inline izstr token_type_to_string(TokenType type) {
 }
 
 struct Token {
-    u32 pos;
-    u32 length;
+    u32         pos;
+    u32         length;
+    TokenType   type;
 };
