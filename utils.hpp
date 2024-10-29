@@ -80,6 +80,8 @@ struct allocator {
 };
 
 void* allocator_malloc(allocator *alloc, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
+void* allocator_realloc(allocator *alloc, void * old_memory, usz old_size, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
+void allocator_free_all(allocator *alloc);
 
 typedef struct arena_allocator arena_allocator;
 struct arena_allocator {
@@ -169,7 +171,11 @@ struct free_list_allocator {
     placement_policy    policy;
 };
 void* free_list_allocator_func (void* allocator_data, allocator_type type, usz size, usz alignment, void* old_memory, usz old_size, allocator_flag flag);
-void free_list_init(free_list_allocator *fl);
+void free_list_init(free_list_allocator *fl, void *data, size_t size);
+inline void free_list_to_allocator(free_list_allocator *fl, allocator* alloc) {
+    alloc->allocator_data = fl;
+    alloc->func = free_list_allocator_func;
+}
 
 /// Strings
 
@@ -184,15 +190,17 @@ typedef char const *izstr;
 // Non zero determinated string with a length
 typedef struct str str;
 struct str {
-  usz len;
-  char *ptr;
+    usz len;
+    char *ptr;
+    allocator alloc;
 };
 
 typedef struct str_buffer str_buffer;
 struct str_buffer {
-  usz len;
-  usz cap;
-  char *buf;
+    usz len;
+    usz cap;
+    char *buf;
+    allocator alloc;
 };
 
 void str_buffer_append(str_buffer *buf, str str);

@@ -1,9 +1,22 @@
 #include "utils.hpp"
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+
+void* allocator_malloc(allocator *alloc, usz size, usz alignment, allocator_flag flag) {
+    return alloc->func(alloc->allocator_data, allocator_type_alloc, size, alignment, NULL, 0, flag);
+}
+
+void allocator_free_all(allocator *alloc) {
+    (void)alloc->func(alloc->allocator_data, allocator_type_free_all, 0, 0, NULL, 0, allocator_flag_none);
+}
+void* allocator_realloc(allocator *alloc, void * old_memory, usz old_size, usz size, usz alignment, allocator_flag flag) {
+    return alloc->func(alloc->allocator_data, allocator_type_realloc, size, alignment, old_memory, old_size, flag);
+}
 
 usz calc_padding_with_header(uptr ptr, uptr alignment, usz header_size) {
     uptr p, a, modulo, padding, needed_space;
@@ -33,6 +46,43 @@ usz calc_padding_with_header(uptr ptr, uptr alignment, usz header_size) {
     }
 
     return (usz)padding;
+}
+
+void free_list_node_insert(free_list_node **phead, free_list_node *prev_node, free_list_node *new_node) {
+    if (prev_node == NULL) {
+        if (*phead != NULL) {
+            new_node->next = *phead;
+        } else {
+            *phead = new_node;
+        }
+    } else {
+        if (prev_node->next == NULL) {
+            prev_node->next = new_node;
+            new_node->next = NULL;
+        } else {
+            new_node->next = prev_node->next;
+            prev_node->next = new_node;
+        }
+    }
+}
+
+void free_list_node_remove(free_list_node **phead, free_list_node *prev_node, free_list_node *del_node) {
+    if (prev_node == NULL) {
+        *phead = del_node;
+    } else {
+        prev_node->next = del_node->next;
+    }
+}
+
+void free_list_coalescence(free_list_allocator *fl, free_list_node *prev_node, free_list_node *free_node) {
+    if (free_node->next != NULL && (void *)((char *)free_node + free_node->block_size) == free_node->next) {
+        free_node->block_size += free_node->next->block_size;
+        free_list_node_remove(&fl->head, free_node, free_node->next);
+    }
+    if (prev_node->next != NULL && (void *)((char *)prev_node + prev_node->block_size) == free_node) {
+        prev_node->block_size += free_node->next->block_size;
+        free_list_node_remove(&fl->head, prev_node, free_node);
+    }
 }
 
 free_list_node *free_list_find_first(free_list_allocator *fl, usz size, usz alignment, usz  *padding_, free_list_node **prev_node_) {
@@ -85,7 +135,7 @@ free_list_node *free_list_find_best(free_list_allocator *fl, usz size, usz align
     if (prev_node_) {
         *prev_node_ = prev_node;
     }
-    return node;
+    return best_node;
 }
 
 void *free_list_allocator_func (void* allocator_data, allocator_type type, usz size, usz alignment, void* old_memory, usz old_size, allocator_flag flag) {
@@ -93,9 +143,88 @@ void *free_list_allocator_func (void* allocator_data, allocator_type type, usz s
 
     switch (type) {
 
-    case allocator_type_alloc:
-    case allocator_type_realloc:
-    case allocator_type_free:
+    case allocator_type_alloc: {
+            usz padding = 0;
+            free_list_node *prev_node = NULL;
+            free_list_node *node = NULL;
+            usz alignment_padding, required_space, remaining;
+            free_list_allocation_header *header_ptr;
+
+            if (size < sizeof(free_list_node)) {
+                size = sizeof(free_list_node);
+            }
+            if (alignment < 8) {
+                alignment = 8;
+            }
+
+            if (fl->policy == placement_policy_find_best) {
+                node = free_list_find_best(fl, size, alignment, &padding, &prev_node);
+            } else {
+                node = free_list_find_first(fl, size, alignment, &padding, &prev_node);
+            }
+
+            if (node == NULL) {
+                assert(0 && "Free list has no memory");
+                return NULL;
+            }
+
+            alignment_padding = padding - sizeof(free_list_allocation_header);
+            required_space = size + padding;
+            remaining = node->block_size - required_space;
+
+            if (remaining > 0) {
+                free_list_node *new_node = (free_list_node *)((char *)node + required_space);
+                new_node->block_size = remaining;
+                free_list_node_insert(&fl->head, node, new_node);
+            }
+
+            free_list_node_remove(&fl->head, prev_node, node);
+
+            header_ptr = (free_list_allocation_header *)((char *)node + alignment_padding);
+            header_ptr->block_size = required_space;
+            header_ptr->padding = alignment_padding;
+
+            fl->used += required_space;
+
+            return (void *)((char *)header_ptr + sizeof(free_list_allocation_header));
+        }
+    case allocator_type_realloc: {
+            void * new_space = free_list_allocator_func(fl, allocator_type_alloc, size, alignment, NULL, 0, flag);
+            new_space = memmove(new_space, old_memory, old_size);
+            (void)free_list_allocator_func(fl, allocator_type_free, 0, 0, old_memory, 0, flag);
+            return new_space;
+        }
+    case allocator_type_free: {
+            free_list_allocation_header *header;
+            free_list_node *free_node;
+            free_list_node *node;
+            free_list_node *prev_node = NULL;
+
+            if (old_memory == NULL) {
+                return NULL;
+            }
+
+            header = (free_list_allocation_header *)((char *)old_memory - sizeof(free_list_allocation_header));
+            free_node = (free_list_node *)header;
+            free_node->block_size = header->block_size + header->padding;
+            free_node->next = NULL;
+
+            node = fl->head;
+            while (node != NULL) {
+                if (old_memory < node) {
+                    free_list_node_insert(&fl->head, prev_node, free_node);
+                    break;
+                }
+                prev_node = node;
+                node = node->next;
+            }
+
+            fl->used -= free_node->block_size;
+
+            free_list_coalescence(fl, prev_node, free_node);
+
+            return NULL;
+        }
     case allocator_type_free_all: {
             fl->used = 0;
             free_list_node *first_node = (free_list_node *)fl->data;
@@ -112,7 +241,7 @@ void *free_list_allocator_func (void* allocator_data, allocator_type type, usz s
 void free_list_init(free_list_allocator *fl, void *data, size_t size) {
     fl->data = data;
     fl->size = size;
-
+    free_list_allocator_func(fl, allocator_type_free_all, 0, 0, NULL, 0, allocator_flag_none);
 }
 
 void pool_init(pool_allocator *p, void *backing_buffer, usz backing_buffer_length, usz chunk_size, usz chunk_alignment) {
@@ -311,9 +440,6 @@ void stack_init(stack_allocator *s, void *backing_buffer, usz backing_buffer_len
 }
 
 
-void* allocator_malloc(allocator *alloc, usz size, usz alignment, allocator_flag flag) {
-    return alloc->func(alloc->allocator_data, allocator_type_alloc, size, alignment, NULL, 0, flag);
-}
 
 void* arena_allocator_func(void *allocator_data, allocator_type type, usz size, usz alignment, void *old_memory, usz old_size, allocator_flag flag) {
     arena_allocator *arena = (arena_allocator *)allocator_data;
@@ -394,6 +520,21 @@ uintptr_t align_forward(uintptr_t ptr, usz align) {
 
 
 void str_buffer_append(str_buffer *buf, str str) {
-    
+    usz new_size = buf->len + str.len;
+    while (new_size > buf->cap) {
+        buf->buf = (char *)allocator_realloc(&buf->alloc, buf->buf, buf->cap, buf->cap * 2);
+        buf->cap = buf->cap * 2;
+    }
+    memcpy(buf->buf + buf->len, str.ptr, str.len);
+    buf->len += str.len;
 }
-void str_buffer_appendz(str_buffer *buf, izstr str) {}
+void str_buffer_appendz(str_buffer *buf, izstr str) {
+    usz strsize = strlen(str);
+    usz new_size = buf->len + strsize;
+    while (new_size > buf->cap) {
+        buf->buf = (char *)allocator_realloc(&buf->alloc, buf->buf, buf->cap, buf->cap * 2);
+        buf->cap = buf->cap * 2;
+    }
+    memcpy(buf->buf + buf->len, str, strsize);
+    buf->len += strsize;
+}
