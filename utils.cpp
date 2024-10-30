@@ -21,6 +21,94 @@ void allocator_free(allocator alloc, void *to_free) {
     (void)alloc.func(alloc.allocator_data, allocator_type_free, 0, 0, to_free, 0, allocator_flag_none);
 }
 
+void heap_node_insert(heap_allocator *h, heap_node *prev_node, heap_node *new_node) {
+    if (prev_node == NULL) {
+        new_node->next = h->head;
+        h->head = new_node;
+    } else {
+        new_node->next = prev_node->next;
+        prev_node->next = new_node;
+    }
+}
+
+void *heap_allocator_func(void *allocator_data, allocator_type type, usz size, usz alignment, void *old_memory, usz old_size, allocator_flag flag) {
+    heap_allocator *h = (heap_allocator *)allocator_data;
+
+    switch (type) {
+    case allocator_type_alloc: {
+            void *new_alloc = malloc(size);
+            if (flag & allocator_flag_clear_to_zero) {
+                memset(new_alloc, 0, size);
+            }
+            heap_node *new_node = (heap_node *) malloc(sizeof(heap_node));
+            new_node->next = NULL;
+            new_node->data = new_alloc;
+            heap_node_insert(h, NULL, new_node);
+            return new_node;
+        }
+    case allocator_type_realloc: {
+            heap_node *node = h->head;
+
+            while (node != NULL) {
+                if (node->data == old_memory) {
+                    break;
+                }
+                node = node->next;
+            }
+
+            if (node == NULL) {
+                assert(0 && "Tried to reallocate an piece of memory not owned by this heap allocator");
+                return NULL;
+            }
+
+            node->data = realloc(old_memory, size);
+
+            if (flag & allocator_flag_clear_to_zero) {
+                memset((void *)(((uptr)node->data) + old_size), 0, size - old_size);
+            }
+            return node->data;
+        }
+    case allocator_type_free: {
+            heap_node *node = h->head;
+            heap_node *prev_node = NULL;
+
+            while (node != NULL) {
+                if (node->data == old_memory) {
+                    break;
+                }
+                prev_node = node;
+                node = node->next;
+            }
+
+            if (node == NULL) {
+                // Allow double free
+                return NULL;
+            }
+
+            if (prev_node != NULL) {
+                prev_node->next = node->next;
+            } else {
+                h->head = node->next;
+            }
+            free(node->data);
+            free(node);
+        }
+    case allocator_type_free_all: {
+            heap_node *node = h->head;
+
+            while (node != NULL) {
+                heap_node *next_node = node->next;
+                free(node->data);
+                free(node);
+                node = next_node;
+            }
+
+            h->head = NULL;
+        }
+    }
+    return NULL;
+}
+
 usz calc_padding_with_header(uptr ptr, uptr alignment, usz header_size) {
     uptr p, a, modulo, padding, needed_space;
 
@@ -575,3 +663,4 @@ void str_buffer_append(str_buffer *buf, izstr str) {
     memcpy(buf->buf + buf->len, str, strsize);
     buf->len += strsize;
 }
+
