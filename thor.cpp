@@ -10,10 +10,16 @@ int main(int argc, char **argv) {
     free_list_to_allocator(&fl, &alloc);
 
     char hello[] = "hello";
-    zstr str = (zstr)allocator_malloc(&alloc, sizeof(hello));
+    zstr str = (zstr)allocator_malloc(alloc, sizeof(hello));
     memcpy(str, hello, sizeof(hello));
+    struct str str2 = str_literal(alloc, "");
 
-    printf("%s\n", str);
 
-    allocator_free_all(&alloc);
+    printf("str\t: '%s'\nstr2\t: '%s'\n", str, str_to_zstr(&str2));
+    str_free(str2);
+    memcpy(str, hello, sizeof(hello));
+    struct str str3 = str_literal(alloc, "");
+    printf("str3\t: '%s'\n", str_to_zstr(&str3));
+
+    allocator_free_all(alloc);
 }

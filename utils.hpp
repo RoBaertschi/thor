@@ -79,9 +79,10 @@ struct allocator {
     void            *allocator_data;
 };
 
-void* allocator_malloc(allocator *alloc, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
-void* allocator_realloc(allocator *alloc, void * old_memory, usz old_size, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
-void allocator_free_all(allocator *alloc);
+void* allocator_malloc(allocator alloc, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
+void* allocator_realloc(allocator alloc, void * old_memory, usz old_size, usz size, usz alignment = DEFAULT_ALIGNMENT, allocator_flag flag = allocator_flag_clear_to_zero);
+void allocator_free(allocator alloc, void *to_free);
+void allocator_free_all(allocator alloc);
 
 typedef struct arena_allocator arena_allocator;
 struct arena_allocator {
@@ -195,13 +196,21 @@ struct str {
     allocator alloc;
 };
 
+// Converts a literal to an allocatet string
+str str_literal(allocator a, izstr str);
+zstr str_to_zstr(str *str);
+zstr str_to_zstr(str *str, allocator alternative_alloc);
+
+void str_free(str str);
+
+
 typedef struct str_buffer str_buffer;
 struct str_buffer {
     usz len;
     usz cap;
     char *buf;
-    allocator alloc;
+    allocator a;
 };
 
 void str_buffer_append(str_buffer *buf, str str);
-void str_buffer_appendz(str_buffer *buf, izstr str);
+void str_buffer_append(str_buffer *buf, izstr str);

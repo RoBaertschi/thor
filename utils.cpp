@@ -7,15 +7,18 @@
 #include <cstring>
 
 
-void* allocator_malloc(allocator *alloc, usz size, usz alignment, allocator_flag flag) {
-    return alloc->func(alloc->allocator_data, allocator_type_alloc, size, alignment, NULL, 0, flag);
+void* allocator_malloc(allocator alloc, usz size, usz alignment, allocator_flag flag) {
+    return alloc.func(alloc.allocator_data, allocator_type_alloc, size, alignment, NULL, 0, flag);
 }
 
-void allocator_free_all(allocator *alloc) {
-    (void)alloc->func(alloc->allocator_data, allocator_type_free_all, 0, 0, NULL, 0, allocator_flag_none);
+void* allocator_realloc(allocator alloc, void * old_memory, usz old_size, usz size, usz alignment, allocator_flag flag) {
+    return alloc.func(alloc.allocator_data, allocator_type_realloc, size, alignment, old_memory, old_size, flag);
 }
-void* allocator_realloc(allocator *alloc, void * old_memory, usz old_size, usz size, usz alignment, allocator_flag flag) {
-    return alloc->func(alloc->allocator_data, allocator_type_realloc, size, alignment, old_memory, old_size, flag);
+void allocator_free_all(allocator alloc) {
+    (void)alloc.func(alloc.allocator_data, allocator_type_free_all, 0, 0, NULL, 0, allocator_flag_none);
+}
+void allocator_free(allocator alloc, void *to_free) {
+    (void)alloc.func(alloc.allocator_data, allocator_type_free, 0, 0, to_free, 0, allocator_flag_none);
 }
 
 usz calc_padding_with_header(uptr ptr, uptr alignment, usz header_size) {
@@ -68,7 +71,7 @@ void free_list_node_insert(free_list_node **phead, free_list_node *prev_node, fr
 
 void free_list_node_remove(free_list_node **phead, free_list_node *prev_node, free_list_node *del_node) {
     if (prev_node == NULL) {
-        *phead = del_node;
+        *phead = del_node->next;
     } else {
         prev_node->next = del_node->next;
     }
@@ -518,21 +521,55 @@ uintptr_t align_forward(uintptr_t ptr, usz align) {
     return p;
 }
 
+str str_literal(allocator a, izstr str) {
+
+    usz length = strlen(str);
+    if (length == 0) {
+        return { /*.len =*/ 0, /*.ptr =*/ NULL, /*.alloc =*/ a };
+    }
+
+    char *new_string = (char *) allocator_malloc(a, length);
+    memcpy(new_string, str, length);
+
+    return { /*.len =*/ length, /*.ptr =*/ new_string, /*.alloc =*/ a };
+}
+
+zstr str_to_zstr(str *str) {
+    zstr new_string = (zstr) allocator_malloc(str->alloc, str->len + 1 /* \0 */);
+    if (str->len > 0) {
+        memcpy(new_string, str->ptr, str->len);
+    }
+    new_string[str->len] = '\0';
+    return new_string;
+}
+zstr str_to_zstr(str *str, allocator a) {
+    zstr new_string = (zstr) allocator_malloc(a, str->len + 1 /* \0 */);
+    if (str->len > 0) {
+        memcpy(new_string, str->ptr, str->len);
+    }
+    new_string[str->len] = '\0';
+    return new_string;
+}
+
+void str_free(str str) {
+    allocator_free(str.alloc, str.ptr);
+}
 
 void str_buffer_append(str_buffer *buf, str str) {
     usz new_size = buf->len + str.len;
     while (new_size > buf->cap) {
-        buf->buf = (char *)allocator_realloc(&buf->alloc, buf->buf, buf->cap, buf->cap * 2);
+        buf->buf = (char *)allocator_realloc(buf->a, buf->buf, buf->cap, buf->cap * 2);
         buf->cap = buf->cap * 2;
     }
     memcpy(buf->buf + buf->len, str.ptr, str.len);
     buf->len += str.len;
 }
-void str_buffer_appendz(str_buffer *buf, izstr str) {
+
+void str_buffer_append(str_buffer *buf, izstr str) {
     usz strsize = strlen(str);
     usz new_size = buf->len + strsize;
     while (new_size > buf->cap) {
-        buf->buf = (char *)allocator_realloc(&buf->alloc, buf->buf, buf->cap, buf->cap * 2);
+        buf->buf = (char *)allocator_realloc(buf->a, buf->buf, buf->cap, buf->cap * 2);
         buf->cap = buf->cap * 2;
     }
     memcpy(buf->buf + buf->len, str, strsize);
