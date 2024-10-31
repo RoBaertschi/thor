@@ -92,6 +92,7 @@ void *heap_allocator_func(void *allocator_data, allocator_type type, usz size, u
             }
             free(node->data);
             free(node);
+            return NULL;
         }
     case allocator_type_free_all: {
             heap_node *node = h->head;
@@ -169,6 +170,9 @@ void free_list_coalescence(free_list_allocator *fl, free_list_node *prev_node, f
     if (free_node->next != NULL && (void *)((char *)free_node + free_node->block_size) == free_node->next) {
         free_node->block_size += free_node->next->block_size;
         free_list_node_remove(&fl->head, free_node, free_node->next);
+    }
+    if (prev_node == NULL) {
+        return;
     }
     if (prev_node->next != NULL && (void *)((char *)prev_node + prev_node->block_size) == free_node) {
         prev_node->block_size += free_node->next->block_size;
