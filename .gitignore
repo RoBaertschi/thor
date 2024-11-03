@@ -1,0 +1,4 @@
+builddir
+.cache
+subprojects/**
+!subprojects/*.wrap
