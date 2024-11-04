@@ -20,7 +20,7 @@ void lexer_read_char(Lexer *l) {
     } else {
         l->ch = l->input.ptr[l->peek_pos];
     }
-l->pos = l->peek_pos;
+    l->pos = l->peek_pos;
     l->peek_pos += 1;
 }
 
@@ -184,7 +184,6 @@ Tokens lexer_lex_tokens(Lexer *l) {
 
 str tokens_token_str(str input, Tokens *t, Index idx) {
     return to_strl(input.ptr + t->tokens[idx].pos, t->tokens[idx].len);
-
 }
 
 int extra_data_integer(Tokens *t, TokenExtraDataIndex i) {

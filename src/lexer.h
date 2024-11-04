@@ -53,7 +53,7 @@ struct Lexer {
 Lexer  lexer_create(str input, LexerFatalErrorCallback fatal_error_cb);
 void   lexer_destroy(Lexer lexer);
 Tokens lexer_lex_tokens(Lexer *l);
-str tokens_token_str(str input, Tokens *t, Index idx);
+str    tokens_token_str(str input, Tokens *t, Index idx);
 void   tokens_destroy(Tokens t);
 
 int extra_data_integer(Tokens *t, TokenExtraDataIndex i);

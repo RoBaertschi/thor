@@ -198,6 +198,7 @@ void parser_destroy(Parser p) {
 void print_node(Parser *p, Module *m, Node *node);
 
 void print_integer(Parser *p, Module *m, Node *node) {
+    (void)m;
     str integer = tokens_token_str(p->input, &p->tokens, node->main_token);
     str_fprint(stdout, integer);
     str_destroy(integer);
@@ -234,7 +235,7 @@ void print_node(Parser *p, Module *m, Node *node) {
 }
 
 void print_module(Parser *p, Module *m) {
-    char *name = to_cstr(m->name);
+    char *name = to_cstr_in_string_pool(m->name);
     printf("Module %s:\n", name);
     free(name);
     for (usz i = 0; i < m->top_level_nodes.len; i++) {

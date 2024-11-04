@@ -14,12 +14,19 @@ static struct {
     string_pool_node *head;
 } string_pool = {.head = NULL};
 
-char *to_cstr(str str) {
+char *to_cstr_in_string_pool(str str) {
     char *new_str = malloc(str.len + 1);
     memcpy(new_str, str.ptr, str.len + 1);
     new_str[str.len] = '\0';
 
     string_pool_take_ownership(new_str);
+    return new_str;
+}
+
+char *to_cstr(str str) {
+    char *new_str = malloc(str.len + 1);
+    memcpy(new_str, str.ptr, str.len + 1);
+    new_str[str.len] = '\0';
     return new_str;
 }
 

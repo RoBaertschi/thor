@@ -7,7 +7,7 @@ const char *token_type_str(TokenType type) {
         return #lower;
         TOKENS
 #undef X
-    default:
-        return "invalid token type";
+        default:
+            return "invalid token type";
     }
 }

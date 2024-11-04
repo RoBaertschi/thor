@@ -1,9 +1,9 @@
 #pragma once
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <stdio.h>
 
 #ifndef NORETURN
@@ -35,6 +35,8 @@ struct str {
 
 // This allocates the string in the string pool. So if we forgot to free or
 // don't want to, it will not leak.
+char *to_cstr_in_string_pool(str str);
+// You will have to call free() on the result.
 char *to_cstr(str str);
 // Converts a String Literal or Normal String to a str.
 str  to_str(const char *s);

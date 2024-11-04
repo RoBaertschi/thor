@@ -26,7 +26,7 @@ void test_parser_variable_decleration(void) {
     ParseModuleResult mod = parser_parse_module(&p);
     if (mod.type != PARSE_RESULT_TYPE_OK) {
         str err = parse_error_str(mod.type, mod.data.errors);
-        char* cerr = to_cstr(err);
+        char* cerr = to_cstr_in_string_pool(err);
         printf("%s", cerr);
         str_destroy(err);
     }
