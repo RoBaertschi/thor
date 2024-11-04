@@ -41,4 +41,10 @@ struct Module {
         usz   len;
         Node *data;
     } nodes;
+    // Nodes that are top_level for analysis of a ast walker.
+    struct {
+        usz   cap;
+        usz   len;
+        Index *data;
+    } top_level_nodes;
 };

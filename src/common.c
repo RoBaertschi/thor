@@ -1,5 +1,6 @@
 #include "common.h"
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,7 +53,8 @@ str str_clone(str s) {
     };
 
     if (new_str.ptr == NULL) {
-        assert(0 && "Failed to malloc for a str_clone, this indicates that the system has run out of memory.");
+        assert(0 && "Failed to malloc for a str_clone, this indicates that the "
+                    "system has run out of memory.");
         return (str){.len = 0, .ptr = NULL};
     }
 
@@ -61,9 +63,7 @@ str str_clone(str s) {
     return new_str;
 }
 
-void str_destroy(str s) {
-    free(s.ptr);
-}
+void str_destroy(str s) { free(s.ptr); }
 
 bool str_equal(str s1, str s2) {
     if (s1.len != s2.len) {
@@ -78,6 +78,34 @@ bool str_equal(str s1, str s2) {
     }
 
     return true;
+}
+
+str __attribute__((__format__(printf, 1, 2))) str_format(const char *format,
+                                                         ...) {
+    va_list va;
+    va_start(va, format);
+    str str = str_format_va(format, va);
+    va_end(va);
+    return str;
+}
+
+str str_format_va(const char *format, va_list va) {
+    va_list va1;
+    va_copy(va1, va);
+    usz needed = vsnprintf(NULL, 0, format, va1);
+    va_end(va1);
+    char *buffer = malloc(needed);
+    vsnprintf(buffer, needed, format, va);
+    return (str){.len = needed, .ptr = buffer};
+}
+
+void str_fprint(FILE *file, str to_print) {
+    fwrite(to_print.ptr, sizeof(char), to_print.len, file);
+}
+
+void str_fprintln(FILE *file, str to_print) {
+    str_fprint(file, to_print);
+    fwrite("\n", sizeof(char), 1, file);
 }
 
 void string_pool_free(char *str) {
@@ -122,7 +150,6 @@ void string_pool_free_all(void) {
     string_pool.head = NULL;
 }
 
-
 bool vec_ensure_size(usz len, usz *cap, void **ptr, usz item_size,
                      usz items_to_add) {
 
@@ -146,4 +173,3 @@ bool vec_ensure_size(usz len, usz *cap, void **ptr, usz item_size,
     }
     return true;
 }
-

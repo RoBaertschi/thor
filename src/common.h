@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #ifndef NORETURN
 #ifdef __GNUC__
@@ -40,7 +42,13 @@ str  to_strl(const char *s, usz len);
 str  str_clone(str s);
 void str_destroy(str s);
 
-bool str_equal(str s1, str s2);
+bool                                          str_equal(str s1, str s2);
+str __attribute__((__format__(printf, 1, 2))) str_format(const char *format,
+                                                         ...);
+str str_format_va(const char *format, va_list va);
+// Prints the provided str to file
+void str_fprint(FILE *file, str to_print);
+void str_fprintln(FILE *file, str to_print);
 
 void string_pool_free(char *str);
 // This function takes the ownership of a string.
@@ -48,7 +56,6 @@ void string_pool_free(char *str);
 // to be freed with the string pool;
 void string_pool_take_ownership(char *str);
 void string_pool_free_all(void);
-
 
 bool vec_ensure_size(usz len, usz *cap, void **ptr, usz item_size,
                      usz items_to_add);

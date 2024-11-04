@@ -49,6 +49,8 @@ PARSER_RESULT(Module)
 PARSER_RESULT(Node)
 PARSER_RESULT(Index)
 
+str parse_error_str(ParseResultType type, ParseErrors errors);
+
 /*#define TRY(result, type) (result.type == PARSE_RESULT_TYPE_OK ?
  * result.data.ok : (type) {.type = result.type, .data.errors =
  * result.data.errors})*/
@@ -58,6 +60,17 @@ PARSER_RESULT(Index)
         if (tried.type != PARSE_RESULT_TYPE_OK) {                              \
             return (to){.type = tried.type, .data.errors = tried.data.errors}; \
         }                                                                      \
+    } while (0);
+
+#define TRY_OUTPUT(result, from, to, output_name)                         \
+    from output_name;                                                     \
+    do {                                                                  \
+        Parse##from##Result tried = (result);                             \
+        if (tried.type != PARSE_RESULT_TYPE_OK) {                         \
+            return (Parse##to##Result){.type        = tried.type,         \
+                                       .data.errors = tried.data.errors}; \
+        }                                                                 \
+        output_name = tried.data.ok;                                      \
     } while (0);
 
 typedef struct Parser Parser;
@@ -74,5 +87,4 @@ ParseModuleResult parser_parse_module(Parser *p);
 void              parser_destroy(Parser p);
 
 void module_destroy(Module m);
-
-void print_module(Module *m);
+void print_module(Parser *p, Module *m);

@@ -20,6 +20,20 @@ ParseIndexResult module_insert_node(Module *m, Node node) {
                               .data.ok = m->nodes.len - 1};
 }
 
+ParseIndexResult module_insert_top_level_node(Module *m, Index node) {
+    if (!vec_ensure_size(m->top_level_nodes.len, &m->top_level_nodes.cap,
+                         (void **)&m->top_level_nodes.data, sizeof(Index), 1)) {
+        return (ParseIndexResult){.type    = PARSE_RESULT_MALLOC_FAILED,
+                                  .data.ok = 0};
+    }
+
+    m->top_level_nodes.data[m->top_level_nodes.len] = node;
+    m->top_level_nodes.len += 1;
+
+    return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
+                              .data.ok = m->top_level_nodes.len - 1};
+}
+
 void parser_next_token(Parser *p) {
     p->cur_token = p->peek_token;
     p->peek_token += 1;
@@ -114,6 +128,7 @@ ParseNodeResult parse_variable_declaration(Parser *p) {
     rhs = idx.data.ok;
     TRY(parser_expect_peek(p, TOKEN_TYPE_EOL), ParseIndexResult,
         ParseNodeResult);
+    parser_next_token(p);
     return (ParseNodeResult){
         .type    = PARSE_RESULT_TYPE_OK,
         .data.ok = (Node){.data       = {.rhs = rhs, .lhs = lhs},
@@ -157,6 +172,12 @@ ParseModuleResult parser_parse_module(Parser *p) {
             return (ParseModuleResult){.type        = result.type,
                                        .data.errors = result.data.errors};
         }
+
+        TRY_OUTPUT(module_insert_node(&p->cur_module, result.data.ok), Index,
+                   Module, idx);
+
+        TRY(module_insert_top_level_node(&p->cur_module, idx), ParseIndexResult,
+            ParseModuleResult);
     }
 
     return (ParseModuleResult){.type    = PARSE_RESULT_TYPE_OK,
@@ -165,6 +186,7 @@ ParseModuleResult parser_parse_module(Parser *p) {
 
 void module_destroy(Module m) {
     free(m.nodes.data);
+    free(m.top_level_nodes.data);
     str_destroy(m.name);
 }
 
@@ -173,21 +195,76 @@ void parser_destroy(Parser p) {
     tokens_destroy(p.tokens);
 }
 
+void print_node(Parser *p, Module *m, Node *node);
 
-void print_module(Module *m) {
+void print_integer(Parser *p, Module *m, Node *node) {
+    str integer = tokens_token_str(p->input, &p->tokens, node->main_token);
+    str_fprint(stdout, integer);
+    str_destroy(integer);
+}
+
+void print_variable_declaration(Parser *p, Module *m, Node *node) {
+    str var_name = tokens_token_str(p->input, &p->tokens, node->main_token);
+    str_fprint(stdout, var_name);
+    str_destroy(var_name);
+    printf(" :");
+    if (node->data.lhs != 0) {
+        printf(" ");
+        str type_name = tokens_token_str(p->input, &p->tokens, node->data.lhs);
+        str_fprint(stdout, type_name);
+        str_destroy(type_name);
+        printf(" ");
+    }
+    printf("= ");
+    print_node(p, m, &m->nodes.data[node->data.rhs]);
+    printf("\n");
+}
+
+void print_node(Parser *p, Module *m, Node *node) {
+
+    switch (node->type) {
+
+        case NODE_TYPE_VARIABLE_DECLARATION:
+            print_variable_declaration(p, m, node);
+            break;
+        case NODE_TYPE_INTEGER_LITERAL:
+            print_integer(p, m, node);
+            break;
+    }
+}
+
+void print_module(Parser *p, Module *m) {
     char *name = to_cstr(m->name);
     printf("Module %s:\n", name);
     free(name);
-    for (usz i = 0; i < m->nodes.len; i++) {
-        Node *node = &m->nodes.data[i];
-        switch (node->type) {
-
-            case NODE_TYPE_VARIABLE_DECLARATION:
-                printf("variable declaration");
-                break;
-            case NODE_TYPE_INTEGER_LITERAL:
-                printf("integer literal");
-                break;
-        }
+    for (usz i = 0; i < m->top_level_nodes.len; i++) {
+        Node *node = &m->nodes.data[m->top_level_nodes.data[i]];
+        print_node(p, m, node);
     }
+}
+
+str parse_error_str(ParseResultType type, ParseErrors errors) {
+    switch (type) {
+
+        case PARSE_RESULT_TYPE_OK:
+            return to_str("ok");
+        case PARSE_RESULT_MALLOC_FAILED:
+            return to_str("malloc failed");
+        case PARSE_RESULT_TYPE_UNEXPECTED_TOKEN:
+
+            return str_format(
+                "unexpected token, expected: %s, got: %s",
+                token_type_str(errors.unexpected_token.expected),
+                token_type_str(errors.unexpected_token.unexpected));
+        case PARSE_RESULT_TYPE_INVALID:
+            return str_format("invalid token %s at pos %zu",
+                              token_type_str(errors.invalid_token.token.type),
+                              errors.invalid_token.token.pos);
+        case PARSE_RESULT_TYPE_NOT_EXPRESSION:
+            return str_format("token %s not an expression at pos %zu",
+                              token_type_str(errors.invalid_token.token.type),
+                              errors.invalid_token.token.pos);
+    }
+
+    return to_str("INVALID RESULT TYPE");
 }
