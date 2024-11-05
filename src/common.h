@@ -39,15 +39,15 @@ char *to_cstr_in_string_pool(str str);
 // You will have to call free() on the result.
 char *to_cstr(str str);
 // Converts a String Literal or Normal String to a str.
-str  to_str(const char *s);
-str  to_strl(const char *s, usz len);
+str  to_str(char const *s);
+str  to_strl(char const *s, usz len);
 str  str_clone(str s);
 void str_destroy(str s);
 
 bool                                          str_equal(str s1, str s2);
-str __attribute__((__format__(printf, 1, 2))) str_format(const char *format,
+str __attribute__((__format__(printf, 1, 2))) str_format(char const *format,
                                                          ...);
-str str_format_va(const char *format, va_list va);
+str str_format_va(char const *format, va_list va);
 // Prints the provided str to file
 void str_fprint(FILE *file, str to_print);
 void str_fprintln(FILE *file, str to_print);

@@ -23,6 +23,8 @@ CodeGenerator code_gen_create(Tokens t, Parser p, Module m) {
         .context = context,
         .builder = builder,
         .module  = module,
+
+        .named_variables = NULL,
     };
 }
 

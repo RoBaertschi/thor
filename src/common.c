@@ -30,7 +30,7 @@ char *to_cstr(str str) {
     return new_str;
 }
 
-str to_str(const char *s) {
+str to_str(char const *s) {
     usz   len     = strlen(s);
     char *new_str = malloc(len);
 
@@ -42,7 +42,7 @@ str to_str(const char *s) {
     };
 }
 
-str to_strl(const char *s, usz len) {
+str to_strl(char const *s, usz len) {
     char *new_str = malloc(len);
 
     memcpy(new_str, s, len);
@@ -87,7 +87,7 @@ bool str_equal(str s1, str s2) {
     return true;
 }
 
-str __attribute__((__format__(printf, 1, 2))) str_format(const char *format,
+str __attribute__((__format__(printf, 1, 2))) str_format(char const *format,
                                                          ...) {
     va_list va;
     va_start(va, format);
@@ -96,7 +96,7 @@ str __attribute__((__format__(printf, 1, 2))) str_format(const char *format,
     return str;
 }
 
-str str_format_va(const char *format, va_list va) {
+str str_format_va(char const *format, va_list va) {
     va_list va1;
     va_copy(va1, va);
     usz needed = vsnprintf(NULL, 0, format, va1);

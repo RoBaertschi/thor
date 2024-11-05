@@ -23,7 +23,7 @@ enum TokenType {
 typedef enum TokenType TokenType;
 typedef usz            TokenExtraDataIndex;
 
-const char *token_type_str(TokenType type);
+char const *token_type_str(TokenType type);
 
 typedef struct Token Token;
 struct Token {

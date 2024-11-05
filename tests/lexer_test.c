@@ -7,7 +7,7 @@
 void setUp(void) {}
 void tearDown(void) { string_pool_free_all(); }
 
-void expect_identifier(Lexer *l, Tokens *t, Index i, const char *expected) {
+void expect_identifier(Lexer *l, Tokens *t, Index i, char const *expected) {
 
     TEST_ASSERT_EQUAL(TOKEN_TYPE_IDENTIFIER, t->tokens[i].type);
 

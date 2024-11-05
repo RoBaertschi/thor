@@ -10,7 +10,7 @@
 void setUp(void) {}
 void tearDown(void) { string_pool_free_all(); }
 
-Lexer setup_lexer(const char *input) {
+Lexer setup_lexer(char const *input) {
     str   input_str = to_str(input);
     Lexer l         = lexer_create(input_str, NULL);
     str_destroy(input_str);
