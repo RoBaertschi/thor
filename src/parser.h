@@ -15,6 +15,9 @@ enum ParseResultType {
     // Could not parse the expression. The invalid token is populatet with the
     // problematic token.
     PARSE_RESULT_TYPE_NOT_EXPRESSION,
+    // Expected a RPAREN or an identifier, instead found a invalid token. The
+    // invalid token ist saved in invalid token.
+    PARSE_RESULT_TYPE_EXPECTED_FUNCTION_ARGUMENT_LIST,
 };
 typedef enum ParseResultType ParseResultType;
 
@@ -48,6 +51,7 @@ union ParseErrors {
 PARSER_RESULT(Module)
 PARSER_RESULT(Node)
 PARSER_RESULT(Index)
+PARSER_RESULT(FunctionArguments)
 
 str parse_error_str(ParseResultType type, ParseErrors errors);
 
@@ -63,7 +67,6 @@ str parse_error_str(ParseResultType type, ParseErrors errors);
     } while (0);
 
 #define TRY_OUTPUT(result, from, to, output_name)                         \
-    from output_name;                                                     \
     do {                                                                  \
         Parse##from##Result tried = (result);                             \
         if (tried.type != PARSE_RESULT_TYPE_OK) {                         \
@@ -72,6 +75,7 @@ str parse_error_str(ParseResultType type, ParseErrors errors);
         }                                                                 \
         output_name = tried.data.ok;                                      \
     } while (0);
+
 
 typedef struct Parser Parser;
 struct Parser {

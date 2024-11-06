@@ -32,9 +32,29 @@ void test_parser_variable_decleration(void) {
     }
     Module m = mod.data.ok;
     print_module(&p, &m);
-    TEST_ASSERT_EQUAL_size_t_MESSAGE(2, m.nodes.len, "nodes len");
-    TEST_ASSERT_EQUAL_size_t(NODE_TYPE_VARIABLE_DECLARATION, m.nodes.data[1].type);
-    TEST_ASSERT_EQUAL_size_t(1, m.nodes.data[1].main_token);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(2, m.nodes.count, "nodes len");
+    TEST_ASSERT_EQUAL_size_t(NODE_TYPE_VARIABLE_DECLARATION, m.nodes.items[1].type);
+    TEST_ASSERT_EQUAL_size_t(1, m.nodes.items[1].main_token);
+
+    parser_destroy(p);
+    lexer_destroy(l);
+    module_destroy(m);
+}
+
+void test_parser_function(void ) {
+    Lexer l = setup_lexer("fn helloworld(test test) test {}\n");
+    Tokens t = lexer_lex_tokens(&l);
+    Parser p = parser_create(t, str_clone(l.input));
+    ParseModuleResult mod = parser_parse_module(&p);
+    if (mod.type != PARSE_RESULT_TYPE_OK) {
+        print_tokens(&t);
+        str err = parse_error_str(mod.type, mod.data.errors);
+        str_fprintln(stdout, err);
+        str_destroy(err);
+        TEST_ABORT();
+    }
+    Module m = mod.data.ok;
+    print_module(&p, &m);
 
     parser_destroy(p);
     lexer_destroy(l);
@@ -44,5 +64,6 @@ void test_parser_variable_decleration(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_parser_variable_decleration);
+    RUN_TEST(test_parser_function);
     return UNITY_END();
 }

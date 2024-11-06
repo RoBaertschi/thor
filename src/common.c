@@ -34,6 +34,8 @@ str to_str(char const *s) {
     usz   len     = strlen(s);
     char *new_str = malloc(len);
 
+    assert(new_str != NULL && "to_str could not alloc");
+
     memcpy(new_str, s, len);
 
     return (str){
@@ -99,11 +101,14 @@ str __attribute__((__format__(printf, 1, 2))) str_format(char const *format,
 str str_format_va(char const *format, va_list va) {
     va_list va1;
     va_copy(va1, va);
-    usz needed = vsnprintf(NULL, 0, format, va1);
+    usz needed = vsnprintf(NULL, 0, format, va1) + 1;
     va_end(va1);
     char *buffer = malloc(needed);
     vsnprintf(buffer, needed, format, va);
-    return (str){.len = needed, .ptr = buffer};
+    char *buffer_without_0 = malloc(needed - 1);
+    memcpy(buffer_without_0, buffer, needed - 1);
+    free(buffer);
+    return (str){.len = needed - 1, .ptr = buffer_without_0};
 }
 
 void str_fprint(FILE *file, str to_print) {

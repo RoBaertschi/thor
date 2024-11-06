@@ -13,6 +13,7 @@
     X(IDENTIFIER, identifier)                                          \
     X(INTEGER, integer)                                                \
     /* Delimiters */                                                   \
+    X(COMMA, comma)                                                    \
     X(COLON, colon)                                                    \
     X(EQUAL, equal)                                                    \
     /* Barces, Brackets... */                                          \

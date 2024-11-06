@@ -1,37 +1,32 @@
 #include "parser.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
 #include "common.h"
+#include "da.h"
 #include "lexer.h"
 #include "token.h"
 
 ParseIndexResult module_insert_node(Module *m, Node node) {
-    if (!vec_ensure_size(m->nodes.len, &m->nodes.cap, (void **)&m->nodes.data,
-                         sizeof(Node), 1)) {
-        return (ParseIndexResult){.type    = PARSE_RESULT_MALLOC_FAILED,
-                                  .data.ok = 0};
-    }
-
-    m->nodes.data[m->nodes.len] = node;
-    m->nodes.len += 1;
+    da_append(&m->nodes, node);
 
     return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
-                              .data.ok = m->nodes.len - 1};
+                              .data.ok = m->nodes.count - 1};
 }
 
 ParseIndexResult module_insert_top_level_node(Module *m, Index node) {
-    if (!vec_ensure_size(m->top_level_nodes.len, &m->top_level_nodes.cap,
-                         (void **)&m->top_level_nodes.data, sizeof(Index), 1)) {
-        return (ParseIndexResult){.type    = PARSE_RESULT_MALLOC_FAILED,
-                                  .data.ok = 0};
-    }
-
-    m->top_level_nodes.data[m->top_level_nodes.len] = node;
-    m->top_level_nodes.len += 1;
+    da_append(&m->top_level_nodes, node);
 
     return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
-                              .data.ok = m->top_level_nodes.len - 1};
+                              .data.ok = m->top_level_nodes.count - 1};
+}
+
+ParseIndexResult module_insert_extra_data(Module *m, NodeExtraData ed) {
+    da_append(&m->extra_data, ed);
+
+    return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
+                              .data.ok = m->extra_data.count - 1};
 }
 
 void parser_next_token(Parser *p) {
@@ -45,7 +40,7 @@ Parser parser_create(Tokens t, str input) {
         .cur_token  = 1,
         .peek_token = 2,
         .input      = input,
-        .cur_module = {.name = {0}, .nodes = {0}}
+        .cur_module = {.name = to_str("main"), .nodes = {0}}
     };
 
     return p;
@@ -79,6 +74,20 @@ ParseIndexResult parser_expect_peek(Parser *p, TokenType expected) {
     return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
                               .data.ok = p->cur_token};
 }
+
+ParseIndexResult parser_expect(Parser *p, TokenType expected) {
+    if (parser_tok(p)->type != expected) {
+        return (ParseIndexResult){
+            .type                         = PARSE_RESULT_TYPE_UNEXPECTED_TOKEN,
+            .data.errors.unexpected_token = {
+                                             .expected = expected, .unexpected = parser_tok(p)->type}
+        };
+    }
+    return (ParseIndexResult){.type    = PARSE_RESULT_TYPE_OK,
+                              .data.ok = p->cur_token};
+}
+
+ParseNodeResult parse_node(Parser *p);
 
 ParseNodeResult parse_integer(Parser *p) {
     Index main_token = p->cur_token;
@@ -137,21 +146,141 @@ ParseNodeResult parse_variable_declaration(Parser *p) {
     };
 }
 
+ParseNodeResult parse_block(Parser *p) {
+    // { ... <-
+    parser_next_token(p);
+    Index     main_token = p->cur_token;
+    BlockData block_data = {0};
+
+    while (parser_tok(p)->type != TOKEN_TYPE_RBRACE) {
+        if (parser_tok(p)->type == TOKEN_TYPE_EOL) {
+            parser_next_token(p);
+            continue;
+        }
+        Index idx;
+        Node  out_node;
+
+        TRY_OUTPUT(parse_node(p), Node, Node, out_node);
+        TRY_OUTPUT(module_insert_node(&p->cur_module, out_node), Index, Node,
+                   idx);
+
+        da_append(&block_data, idx);
+    }
+
+    parser_next_token(p);
+
+    Index         ed_idx;
+    NodeExtraData ed = {.type       = NODE_EXTRA_DATA_BLOCK,
+                        .data.block = block_data};
+    TRY_OUTPUT(module_insert_extra_data(&p->cur_module, ed), Index, Node,
+               ed_idx);
+
+    return (ParseNodeResult){
+        .type    = PARSE_RESULT_TYPE_OK,
+        .data.ok = {.type       = NODE_TYPE_BLOCK,
+                    .main_token = main_token,
+                    .data.lhs   = ed_idx}
+    };
+}
+
+// Expects cur_token to be on an identifier.
+ParseFunctionArgumentsResult parse_arguments(Parser *p) {
+    FunctionArguments args = {0};
+    do {
+        Index name_index, type_index;
+        name_index = p->cur_token;
+        TRY(parser_expect_peek(p, TOKEN_TYPE_IDENTIFIER), ParseIndexResult,
+            ParseFunctionArgumentsResult);
+        type_index = p->cur_token;
+        if (parser_peek_tok(p)->type != TOKEN_TYPE_COMMA) {
+            break;
+        }
+        parser_next_token(p);
+        FunctionArgument arg = {.type = type_index, .name = name_index};
+        da_append(&args, arg);
+    } while (parser_tok(p)->type == TOKEN_TYPE_IDENTIFIER);
+
+    return (ParseFunctionArgumentsResult){.type    = PARSE_RESULT_TYPE_OK,
+                                          .data.ok = args};
+}
+
+ParseNodeResult parse_function_defintition(Parser *p) {
+    Index             main_token, return_type;
+    FunctionArguments args;
+
+    // fn name_of_function <-
+    TRY_OUTPUT(parser_expect_peek(p, TOKEN_TYPE_IDENTIFIER), Index, Node,
+               main_token);
+    // fn name_of_function( <-
+    TRY(parser_expect_peek(p, TOKEN_TYPE_LPAREN), ParseIndexResult,
+        ParseNodeResult);
+
+    switch (parser_peek_tok(p)->type) {
+        case TOKEN_TYPE_IDENTIFIER:
+
+            parser_next_token(p);
+            TRY_OUTPUT(parse_arguments(p), FunctionArguments, Node, args);
+
+            // ) <-
+            TRY(parser_expect_peek(p, TOKEN_TYPE_RPAREN), ParseIndexResult,
+                ParseNodeResult);
+
+            break;
+        case TOKEN_TYPE_RPAREN:
+            // ) <-
+            TRY(parser_expect_peek(p, TOKEN_TYPE_RPAREN), ParseIndexResult,
+                ParseNodeResult);
+            break;
+        default:
+            return (ParseNodeResult){
+                .type = PARSE_RESULT_TYPE_EXPECTED_FUNCTION_ARGUMENT_LIST,
+                .data.errors.invalid_token =
+                    {
+                                                .token = *parser_peek_tok(p),
+                                                },
+            };
+    }
+
+    // fn name(arg type) <-
+
+    // fn name(arg type) returntype <-
+    // TODO: Type parsing
+    TRY_OUTPUT(parser_expect_peek(p, TOKEN_TYPE_IDENTIFIER), Index, Node,
+               return_type);
+
+    parser_expect_peek(p, TOKEN_TYPE_LBRACE);
+    // fn name(arg type) returntype { <-
+    Node  block;
+    Index block_idx;
+    TRY_OUTPUT(parse_block(p), Node, Node, block);
+    TRY_OUTPUT(module_insert_node(&p->cur_module, block), Index, Node,
+               block_idx);
+
+    NodeExtraData extra_data = {
+        .type                    = NODE_EXTRA_DATA_FUNCTION_PROTOTYPE,
+        .data.function_prototype = {.return_type = return_type, .args = args}
+    };
+    da_append(&p->cur_module.extra_data, extra_data);
+    Index ed_idx = p->cur_module.extra_data.count - 1;
+
+    Node node = {
+        .data       = {.lhs = ed_idx, .rhs = block_idx},
+        .type       = NODE_TYPE_FUNCTION_DEFINITION,
+        .main_token = main_token,
+    };
+
+    return (ParseNodeResult){.type = PARSE_RESULT_TYPE_OK, .data.ok = node};
+}
+
 // Protocol: after parse_node p->cur_token is on the token after the previous
 // node
 ParseNodeResult parse_node(Parser *p) {
     switch (parser_tok(p)->type) {
-
+        case TOKEN_TYPE_FN:
+            return parse_function_defintition(p);
         case TOKEN_TYPE_IDENTIFIER:
             return parse_variable_declaration(p);
-        case TOKEN_TYPE_INTEGER:
-        case TOKEN_TYPE_COLON:
-        case TOKEN_TYPE_EQUAL:
-        case TOKEN_TYPE_EOL:
-        case TOKEN_TYPE_EOF:
-        case TOKEN_TYPE_NONE:
-        case TOKEN_TYPE_INVALID:
-        case TOKEN_TYPE_LAST:
+        default:
             return (ParseNodeResult){
                 .type                      = PARSE_RESULT_TYPE_INVALID,
                 .data.errors.invalid_token = {*parser_tok(p)},
@@ -173,6 +302,7 @@ ParseModuleResult parser_parse_module(Parser *p) {
                                        .data.errors = result.data.errors};
         }
 
+        Index idx;
         TRY_OUTPUT(module_insert_node(&p->cur_module, result.data.ok), Index,
                    Module, idx);
 
@@ -185,8 +315,8 @@ ParseModuleResult parser_parse_module(Parser *p) {
 }
 
 void module_destroy(Module m) {
-    free(m.nodes.data);
-    free(m.top_level_nodes.data);
+    free(m.nodes.items);
+    free(m.top_level_nodes.items);
     str_destroy(m.name);
 }
 
@@ -217,8 +347,52 @@ void print_variable_declaration(Parser *p, Module *m, Node *node) {
         printf(" ");
     }
     printf("= ");
-    print_node(p, m, &m->nodes.data[node->data.rhs]);
+    print_node(p, m, &m->nodes.items[node->data.rhs]);
     printf("\n");
+}
+
+void print_block(Parser *p, Module *m, Node *node) {
+    printf("{\n");
+    BlockData bd = m->extra_data.items[node->data.lhs].data.block;
+    for (usz i = 0; i < bd.count; i++) {
+        printf("\t");
+        print_node(p, m, &m->nodes.items[bd.items[i]]);
+    }
+    printf("\n}\n");
+}
+
+void print_function_definition(Parser *p, Module *m, Node *node) {
+    FunctionPrototypeData fpd =
+        m->extra_data.items[node->data.lhs].data.function_prototype;
+
+    str name = tokens_token_str(p->input, &p->tokens, node->main_token);
+    printf("fn ");
+    str_fprint(stdout, name);
+    str_destroy(name);
+    printf("(");
+
+    for (usz i = 0; i < fpd.args.count; i++) {
+        str var_name, type;
+        var_name =
+            tokens_token_str(p->input, &p->tokens, fpd.args.items[i].name);
+        type = tokens_token_str(p->input, &p->tokens, fpd.args.items[i].type);
+
+        str_fprint(stdout, var_name);
+        printf(" ");
+        str_fprint(stdout, type);
+        if (i + 1 < fpd.args.count) {
+            printf(", ");
+        }
+        str_destroy(var_name);
+        str_destroy(type);
+    }
+    printf(") ");
+    str return_type = tokens_token_str(p->input, &p->tokens, fpd.return_type);
+    str_fprint(stdout, return_type);
+    str_destroy(return_type);
+    printf(" ");
+
+    print_block(p, m, &m->nodes.items[node->data.rhs]);
 }
 
 void print_node(Parser *p, Module *m, Node *node) {
@@ -231,15 +405,22 @@ void print_node(Parser *p, Module *m, Node *node) {
         case NODE_TYPE_INTEGER_LITERAL:
             print_integer(p, m, node);
             break;
+
+        case NODE_TYPE_BLOCK:
+            print_block(p, m, node);
+            break;
+        case NODE_TYPE_FUNCTION_DEFINITION:
+            print_function_definition(p, m, node);
+            break;
     }
 }
 
 void print_module(Parser *p, Module *m) {
-    char *name = to_cstr_in_string_pool(m->name);
+    char *name = to_cstr(m->name);
     printf("Module %s:\n", name);
     free(name);
-    for (usz i = 0; i < m->top_level_nodes.len; i++) {
-        Node *node = &m->nodes.data[m->top_level_nodes.data[i]];
+    for (usz i = 0; i < m->top_level_nodes.count; i++) {
+        Node *node = &m->nodes.items[m->top_level_nodes.items[i]];
         print_node(p, m, node);
     }
 }
@@ -263,6 +444,11 @@ str parse_error_str(ParseResultType type, ParseErrors errors) {
                               errors.invalid_token.token.pos);
         case PARSE_RESULT_TYPE_NOT_EXPRESSION:
             return str_format("token %s not an expression at pos %zu",
+                              token_type_str(errors.invalid_token.token.type),
+                              errors.invalid_token.token.pos);
+        case PARSE_RESULT_TYPE_EXPECTED_FUNCTION_ARGUMENT_LIST:
+            return str_format("token %s at %zu is not valid after the function "
+                              "identifier, expected identifier or ')'",
                               token_type_str(errors.invalid_token.token.type),
                               errors.invalid_token.token.pos);
     }

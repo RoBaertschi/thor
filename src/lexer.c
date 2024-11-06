@@ -192,6 +192,7 @@ Token lexer_next_token(Lexer *l, Tokens *t) {
         SIMPLE_TOKEN('{', TOKEN_TYPE_LBRACE);
         SIMPLE_TOKEN('}', TOKEN_TYPE_RBRACE);
         SIMPLE_TOKEN(':', TOKEN_TYPE_COLON);
+        SIMPLE_TOKEN(',', TOKEN_TYPE_COMMA);
         SIMPLE_TOKEN('=', TOKEN_TYPE_EQUAL);
         SIMPLE_TOKEN('\n', TOKEN_TYPE_EOL);
         case 0:
