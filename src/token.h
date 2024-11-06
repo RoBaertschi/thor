@@ -4,15 +4,26 @@
 
 // Token X macro list
 #define TOKENS                                                         \
+    /* Special   */                                                    \
     X(NONE, none) /* This is a special Token, used to indicate that an \
                      optional Token is missing */                      \
     X(INVALID, invalid)                                                \
+    X(EOF, eof)                                                        \
+    /* Literals  */                                                    \
     X(IDENTIFIER, identifier)                                          \
     X(INTEGER, integer)                                                \
+    /* Delimiters */                                                   \
     X(COLON, colon)                                                    \
     X(EQUAL, equal)                                                    \
-    X(EOL, eol)                                                        \
-    X(EOF, eof)
+    /* Barces, Brackets... */                                          \
+    X(LPAREN, lparen)                                                  \
+    X(RPAREN, rparen)                                                  \
+    X(LBRACE, lbrace)                                                  \
+    X(RBRACE, rbrace)                                                  \
+    /* Keywords */                                                     \
+    X(FN, fn)                                                          \
+    /* Whitespace */                                                   \
+    X(EOL, eol)
 
 enum TokenType {
 #define X(name, unused) TOKEN_TYPE_##name,

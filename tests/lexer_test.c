@@ -76,10 +76,49 @@ void lexer_test_var(void) {
     lexer_destroy(l);
 }
 
+
+void lexer_test_all_tokens(void) {
+    str    str = to_str("hello := 3 {} () fn\n");
+    Lexer  l   = lexer_create(str, NULL);
+    Tokens t   = lexer_lex_tokens(&l);
+
+    TEST_ASSERT_EQUAL_size_t(12, t.len);
+    expect_identifier(&l, &t, 1, "hello");
+    expect_type(&t, 2, TOKEN_TYPE_COLON);
+    expect_type(&t, 3, TOKEN_TYPE_EQUAL);
+    expect_integer(&t, 4, 3);
+    expect_type(&t, 5, TOKEN_TYPE_LBRACE);
+    expect_type(&t, 6, TOKEN_TYPE_RBRACE);
+    expect_type(&t, 7, TOKEN_TYPE_LPAREN);
+    expect_type(&t, 8, TOKEN_TYPE_RPAREN);
+    expect_type(&t, 9, TOKEN_TYPE_FN);
+    expect_type(&t, 10, TOKEN_TYPE_EOL);
+    expect_type(&t, 11, TOKEN_TYPE_EOF);
+
+    str_destroy(str);
+    tokens_destroy(t);
+    lexer_destroy(l);
+}
+
+void lexer_test_function_keyword(void) {
+    str str = to_str("fn");
+    Lexer l = lexer_create(str, NULL);
+    Tokens t = lexer_lex_tokens(&l);
+
+    TEST_ASSERT_EQUAL_size_t(3, t.len);
+    expect_type(&t, 1, TOKEN_TYPE_FN);
+
+    str_destroy(str);
+    tokens_destroy(t);
+    lexer_destroy(l);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(lexer_test_identifier);
     RUN_TEST(lexer_test_integer);
     RUN_TEST(lexer_test_var);
+    RUN_TEST(lexer_test_function_keyword);
+    RUN_TEST(lexer_test_all_tokens);
     return UNITY_END();
 }

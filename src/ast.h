@@ -3,6 +3,17 @@
 #include "common.h"
 #include "lexer.h"
 
+enum NodeExtraDataType {
+    NODE_EXTRA_DATA_FUNCTION_PROTOTYPE,
+};
+typedef enum NodeExtraDataType NodeExtraDataType;
+
+typedef struct NodeExtraData NodeExtraData;
+struct NodeExtraData {
+    NodeExtraDataType type;
+    union {} data;
+};
+
 // The TokenIndex 0 is the None Token, it means that an optional element is not
 // there.
 

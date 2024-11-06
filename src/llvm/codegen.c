@@ -44,5 +44,4 @@ LLVMValueRef cg_integer_literal(CodeGenerator *cg, Node *node) {
     return LLVMConstInt(LLVMInt32TypeInContext(cg->context), integer, false);
 }
 
-LLVMValueRef cg_variable_declaration(CodeGenerator *cg, Node *node) {
-}
+LLVMValueRef cg_variable_declaration(CodeGenerator *cg, Node *node) {}

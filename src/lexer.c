@@ -3,8 +3,37 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "common.h"
 #include "token.h"
+#include "uthash.h"
+
+static keyword_to_token *keyword_to_tokens = NULL;
+static keyword_to_token *k2ts_mem          = NULL;
+
+void init_keyword_to_tokens(void) {
+    keyword_to_token k2ts[] = {
+        {.keyword = "fn", .token = TOKEN_TYPE_FN}
+    };
+
+    k2ts_mem = malloc(sizeof(k2ts));
+    memcpy(k2ts_mem, k2ts, sizeof(k2ts));
+    for (usz i = 0; i < (sizeof(k2ts) / sizeof(keyword_to_token)); i++) {
+        HASH_ADD_STR(keyword_to_tokens, keyword, &k2ts_mem[i]);
+    }
+}
+
+keyword_to_token *get_keyword_to_tokens_hash_map(void) {
+    if (keyword_to_tokens == NULL) {
+        init_keyword_to_tokens();
+    }
+    return keyword_to_tokens;
+}
+
+void free_global_resources(void) {
+    HASH_CLEAR(hh, keyword_to_tokens);
+    free(k2ts_mem);
+}
 
 void NORETURN lexer_fatal_error(Lexer *l, LexerFatalError error) {
     if (l->fatal_error_cb != NULL) {
@@ -25,6 +54,10 @@ void lexer_read_char(Lexer *l) {
 }
 
 Lexer lexer_create(str input, LexerFatalErrorCallback fatal_error_cb) {
+    if (keyword_to_tokens == NULL) {
+        init_keyword_to_tokens();
+    }
+
     Lexer lexer = {.input          = str_clone(input),
                    .ch             = 0,
                    .pos            = 0,
@@ -36,7 +69,10 @@ Lexer lexer_create(str input, LexerFatalErrorCallback fatal_error_cb) {
     return lexer;
 }
 
-void lexer_destroy(Lexer lexer) { str_destroy(lexer.input); }
+void lexer_destroy(Lexer lexer) {
+    str_destroy(lexer.input);
+    free_global_resources();
+}
 
 void tokens_destroy(Tokens t) {
     free(t.extra_data.data);
@@ -88,6 +124,23 @@ Token lexer_read_identifier(Lexer *l, Tokens *t) {
         lexer_read_char(l);
     }
 
+    str   token_str  = to_strl(l->input.ptr + pos, l->pos - pos);
+    char *token_cstr = to_cstr(token_str);
+    str_destroy(token_str);
+    keyword_to_token *k2tk = NULL;
+    HASH_FIND_STR(keyword_to_tokens, token_cstr, k2tk);
+
+    if (k2tk != NULL) {
+        Token token = (Token){.pos        = pos,
+                              .len        = l->pos - pos,
+                              .type       = k2tk->token,
+                              .extra_data = 0};
+
+        tokens_insert(l, t, token);
+        free(token_cstr);
+        return token;
+    }
+
     Token token = {.pos        = pos,
                    .len        = l->pos - pos,
                    .type       = TOKEN_TYPE_IDENTIFIER,
@@ -121,6 +174,12 @@ void lexer_skip_whitespace(Lexer *l) {
     }
 }
 
+#define SIMPLE_TOKEN(char, ttype) \
+    case char:                    \
+        cur_token.type = ttype;   \
+        cur_token.len  = 1;       \
+        break;
+
 Token lexer_next_token(Lexer *l, Tokens *t) {
     lexer_skip_whitespace(l);
 
@@ -128,18 +187,13 @@ Token lexer_next_token(Lexer *l, Tokens *t) {
     cur_token.pos   = l->pos;
 
     switch (l->ch) {
-        case ':':
-            cur_token.type = TOKEN_TYPE_COLON;
-            cur_token.len  = 1;
-            break;
-        case '=':
-            cur_token.type = TOKEN_TYPE_EQUAL;
-            cur_token.len  = 1;
-            break;
-        case '\n':
-            cur_token.type = TOKEN_TYPE_EOL;
-            cur_token.len  = 1;
-            break;
+        SIMPLE_TOKEN('(', TOKEN_TYPE_LPAREN);
+        SIMPLE_TOKEN(')', TOKEN_TYPE_RPAREN);
+        SIMPLE_TOKEN('{', TOKEN_TYPE_LBRACE);
+        SIMPLE_TOKEN('}', TOKEN_TYPE_RBRACE);
+        SIMPLE_TOKEN(':', TOKEN_TYPE_COLON);
+        SIMPLE_TOKEN('=', TOKEN_TYPE_EQUAL);
+        SIMPLE_TOKEN('\n', TOKEN_TYPE_EOL);
         case 0:
             cur_token.type = TOKEN_TYPE_EOF;
             cur_token.len  = 1;
