@@ -62,6 +62,12 @@ Token *parser_peek_tok(Parser *p) {
     return &p->tokens.tokens[p->peek_token];
 }
 
+void parser_skip_whitespace(Parser *p) {
+    while (parser_tok(p)->type == TOKEN_TYPE_EOL) {
+        parser_next_token(p);
+    }
+}
+
 ParseIndexResult parser_expect_peek(Parser *p, TokenType expected) {
     if (parser_peek_tok(p)->type != expected) {
         return (ParseIndexResult){
@@ -153,10 +159,7 @@ ParseNodeResult parse_block(Parser *p) {
     BlockData block_data = {0};
 
     while (parser_tok(p)->type != TOKEN_TYPE_RBRACE) {
-        if (parser_tok(p)->type == TOKEN_TYPE_EOL) {
-            parser_next_token(p);
-            continue;
-        }
+        parser_skip_whitespace(p);
         Index idx;
         Node  out_node;
 
@@ -192,12 +195,12 @@ ParseFunctionArgumentsResult parse_arguments(Parser *p) {
         TRY(parser_expect_peek(p, TOKEN_TYPE_IDENTIFIER), ParseIndexResult,
             ParseFunctionArgumentsResult);
         type_index = p->cur_token;
+        FunctionArgument arg = {.type = type_index, .name = name_index};
+        da_append(&args, arg);
         if (parser_peek_tok(p)->type != TOKEN_TYPE_COMMA) {
             break;
         }
         parser_next_token(p);
-        FunctionArgument arg = {.type = type_index, .name = name_index};
-        da_append(&args, arg);
     } while (parser_tok(p)->type == TOKEN_TYPE_IDENTIFIER);
 
     return (ParseFunctionArgumentsResult){.type    = PARSE_RESULT_TYPE_OK,
@@ -272,14 +275,29 @@ ParseNodeResult parse_function_defintition(Parser *p) {
     return (ParseNodeResult){.type = PARSE_RESULT_TYPE_OK, .data.ok = node};
 }
 
+ParseNodeResult parse_eof(Parser *p) {
+    Index main_token = p->cur_token;
+
+    parser_next_token(p);
+
+    return (ParseNodeResult){
+        .type    = PARSE_RESULT_TYPE_OK,
+        .data.ok = {
+                    .type = NODE_TYPE_EOF, .main_token = main_token, .data = {0}}
+    };
+}
+
 // Protocol: after parse_node p->cur_token is on the token after the previous
 // node
 ParseNodeResult parse_node(Parser *p) {
+    parser_skip_whitespace(p);
     switch (parser_tok(p)->type) {
         case TOKEN_TYPE_FN:
             return parse_function_defintition(p);
         case TOKEN_TYPE_IDENTIFIER:
             return parse_variable_declaration(p);
+        case TOKEN_TYPE_EOF:
+            return parse_eof(p);
         default:
             return (ParseNodeResult){
                 .type                      = PARSE_RESULT_TYPE_INVALID,
@@ -308,6 +326,10 @@ ParseModuleResult parser_parse_module(Parser *p) {
 
         TRY(module_insert_top_level_node(&p->cur_module, idx), ParseIndexResult,
             ParseModuleResult);
+
+        if (result.data.ok.type == NODE_TYPE_EOF) {
+            break;
+        }
     }
 
     return (ParseModuleResult){.type    = PARSE_RESULT_TYPE_OK,
@@ -411,6 +433,9 @@ void print_node(Parser *p, Module *m, Node *node) {
             break;
         case NODE_TYPE_FUNCTION_DEFINITION:
             print_function_definition(p, m, node);
+            break;
+        case NODE_TYPE_EOF:
+            printf("<EOF>\n");
             break;
     }
 }

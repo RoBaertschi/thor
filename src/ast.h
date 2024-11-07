@@ -65,6 +65,9 @@ enum NodeType {
     // lhs is the optional type.
     // rhs is the expression
     NODE(VARIABLE_DECLARATION),
+    // End of file
+    // main_token is the eof token
+    NODE(EOF),
 };
 typedef enum NodeType NodeType;
 

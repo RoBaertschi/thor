@@ -44,4 +44,16 @@ LLVMValueRef cg_integer_literal(CodeGenerator *cg, Node *node) {
     return LLVMConstInt(LLVMInt32TypeInContext(cg->context), integer, false);
 }
 
-LLVMValueRef cg_variable_declaration(CodeGenerator *cg, Node *node) {}
+// Expression have a value, statements don't
+bool is_expression(Node *node) {
+    switch (node->type) {
+        case NODE_TYPE_INTEGER_LITERAL:
+            return true;
+        case NODE_TYPE_BLOCK:
+        case NODE_TYPE_FUNCTION_DEFINITION:
+        case NODE_TYPE_VARIABLE_DECLARATION:
+        case NODE_TYPE_EOF:
+            return false;
+    }
+    return false;
+}
