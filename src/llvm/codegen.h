@@ -28,4 +28,4 @@ struct CodeGenerator {
 
 CodeGenerator code_gen_create(Tokens t, Parser p, Module m);
 void          code_gen_destroy(CodeGenerator cg);
-bool is_expression(Node *node);
+void code_gen(CodeGenerator *cg);

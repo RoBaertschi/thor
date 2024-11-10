@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
+#include "ast_walker.h"
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
+#include "analyse.h"
 
 CodeGenerator code_gen_create(Tokens t, Parser p, Module m) {
     LLVMContextRef context     = LLVMContextCreate();
@@ -40,15 +42,20 @@ void code_gen_destroy(CodeGenerator cg) {
     tokens_destroy(cg.tokens);
 }
 
+void code_gen(CodeGenerator *cg) {
+    AstWalker walker = {
+        .data      = {.m     = &cg->thor_module,
+                      .t     = &cg->tokens,
+                      .input = &cg->parser.input},
+        .user_data = cg,
+    };
+
+    ast_walker_walk(&walker);
+}
+
 void cg_top_level(CodeGenerator *cg, Node *node);
 
-void cg_module(CodeGenerator *cg) {
-    for (usz i = 0; i < cg->thor_module.top_level_nodes.count; i++) {
-        cg_top_level(
-            cg,
-            cg->thor_module.nodes.items[cg->thor_module.top_level_nodes[i]]);
-    }
-}
+void cg_module(CodeGenerator *cg) {}
 
 void cg_top_level(CodeGenerator *cg, Node *node) {}
 
@@ -59,7 +66,7 @@ LLVMValueRef cg_integer_literal(CodeGenerator *cg, Node *node) {
 }
 
 LLVMValueRef cg_get_value(CodeGenerator *cg, Node *node) {
-    assert(is_expression(node) && "node is not an expression");
+    assert(analy_is_expression(node) && "node is not an expression");
 
     switch (node->type) {
         case NODE_TYPE_INTEGER_LITERAL:
@@ -69,21 +76,7 @@ LLVMValueRef cg_get_value(CodeGenerator *cg, Node *node) {
         case NODE_TYPE_FUNCTION_DEFINITION:
         case NODE_TYPE_VARIABLE_DECLARATION:
         case NODE_TYPE_EOF:
-            fprintf(stderr, "not a valid expression");
-            abort();
+            UNREACHABLE("not an expression node");
     }
 }
 
-// Expression have a value, statements don't
-bool is_expression(Node *node) {
-    switch (node->type) {
-        case NODE_TYPE_INTEGER_LITERAL:
-            return true;
-        case NODE_TYPE_BLOCK:
-        case NODE_TYPE_FUNCTION_DEFINITION:
-        case NODE_TYPE_VARIABLE_DECLARATION:
-        case NODE_TYPE_EOF:
-            return false;
-    }
-    return false;
-}

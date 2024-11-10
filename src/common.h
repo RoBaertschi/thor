@@ -14,6 +14,8 @@
 #endif
 #endif
 
+#define UNREACHABLE(why) log_fatal("UNREACHABLE reached: " why);
+
 typedef uint8_t   u8;
 typedef uint16_t  u16;
 typedef uint32_t  u32;
@@ -61,3 +63,18 @@ void string_pool_free_all(void);
 
 bool vec_ensure_size(usz len, usz *cap, void **ptr, usz item_size,
                      usz items_to_add);
+
+#define DEBUG "\033[90m"
+#define WARNING "\033[93m"
+#define ERROR "\033[91m"
+#define FATAL "\033[91m"
+
+#define RESET "\033[0m"
+
+void log_register_file(FILE *file);
+void log_debug(char const *format, ...);
+void log_info(char const *format, ...);
+void log_warning(char const *format, ...);
+void log_error(char const *format, ...);
+// Aborts
+void log_fatal(char const *format, ...) NORETURN;

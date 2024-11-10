@@ -67,6 +67,7 @@ keyword_to_token *get_keyword_to_tokens_hash_map(void);
 void free_global_resources(void);
 
 str    tokens_token_str(str input, Tokens *t, Index idx);
+char *tokens_token_cstr(str input, Tokens *t, Index idx);
 void   tokens_destroy(Tokens t);
 
 int extra_data_integer(Tokens *t, TokenExtraDataIndex i);

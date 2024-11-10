@@ -4,20 +4,15 @@
 #include "ast.h"
 #include "lexer.h"
 
-typedef struct AstWalkerData AstWalkerData;
-struct AstWalkerData {
-    Module m;
-    Tokens t;
-    str    input;
-};
-
 typedef struct Block Block;
 struct Block {
     Index      main_token;
     BlockData *bd;
 };
 
-typedef bool (*ast_walker_block_callback)(void *data, AstWalkerData *awd,
+struct AstWalker;
+
+typedef bool (*ast_walker_block_callback)(void *data, struct AstWalker *awd,
                                           Block block);
 
 typedef struct FunctionDefinition FunctionDefinition;
@@ -28,7 +23,7 @@ struct FunctionDefinition {
 };
 
 typedef bool (*ast_walker_function_definiton_callback)(void              *data,
-                                                       AstWalkerData     *awd,
+                                                       struct AstWalker  *awd,
                                                        FunctionDefinition fd);
 
 typedef struct IntegerLiteral IntegerLiteral;
@@ -37,9 +32,9 @@ struct IntegerLiteral {
     int   integer;
 };
 
-typedef bool (*ast_walker_integer_literal_callback)(void          *data,
-                                                    AstWalkerData *awd,
-                                                    IntegerLiteral il);
+typedef bool (*ast_walker_integer_literal_callback)(void             *data,
+                                                    struct AstWalker *awd,
+                                                    IntegerLiteral    il);
 
 typedef struct VariableDeclaration VariableDeclaration;
 struct VariableDeclaration {
@@ -49,14 +44,15 @@ struct VariableDeclaration {
 };
 
 typedef bool (*ast_walker_variable_declaration_callback)(
-    void *data, AstWalkerData *awd, VariableDeclaration vd);
+    void *data, struct AstWalker *awd, VariableDeclaration vd);
 
 typedef struct Eof Eof;
 struct Eof {
     Index main_token;
 };
 
-typedef bool (*ast_walker_eof_callback)(void *data, AstWalkerData *awd, Eof eof);
+typedef bool (*ast_walker_eof_callback)(void *data, struct AstWalker *awd,
+                                        Eof eof);
 
 typedef struct AstWalker AstWalker;
 struct AstWalker {
@@ -66,8 +62,10 @@ struct AstWalker {
     ast_walker_variable_declaration_callback variable_declaration;
     ast_walker_eof_callback                  eof;
 
-    AstWalkerData data;
-    void *user_data;
+    Module *m;
+    Tokens *t;
+    str    *input;
+    void   *user_data;
 };
 
 void ast_walker_walk(AstWalker *aw);

@@ -1,8 +1,10 @@
 #include "common.h"
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "da.h"
 
 typedef struct string_pool_node string_pool_node;
 struct string_pool_node {
@@ -184,4 +186,71 @@ bool vec_ensure_size(usz len, usz *cap, void **ptr, usz item_size,
         *cap = *cap * 2;
     }
     return true;
+}
+
+static struct {
+    usz    count;
+    usz    capacity;
+    FILE **items;
+} log_files = {.count = 0, .capacity = 0, .items = NULL};
+
+void log_register_file(FILE *file) { da_append(&log_files, file); }
+void log_debug(char const *format, ...) {
+    for (usz i = 0; i < log_files.count; i++) {
+        FILE *file = log_files.items[i];
+        fprintf(file, DEBUG "DEBUG: ");
+        va_list va;
+        va_start(va, format);
+        vfprintf(file, format, va);
+        va_end(va);
+        fprintf(file, "\n%s", RESET);
+    }
+}
+void log_info(char const *format, ...) {
+    for (usz i = 0; i < log_files.count; i++) {
+        FILE *file = log_files.items[i];
+        fprintf(file, "INFO: ");
+        va_list va;
+        va_start(va, format);
+        vfprintf(file, format, va);
+        va_end(va);
+        fprintf(file, "\n%s", RESET);
+    }
+}
+void log_warning(char const *format, ...) {
+    for (usz i = 0; i < log_files.count; i++) {
+        FILE *file = log_files.items[i];
+        fprintf(file, WARNING "WARNING: ");
+        va_list va;
+        va_start(va, format);
+        vfprintf(file, format, va);
+        va_end(va);
+        fprintf(file, "\n%s", RESET);
+    }
+}
+void log_error(char const *format, ...) {
+    for (usz i = 0; i < log_files.count; i++) {
+        FILE *file = log_files.items[i];
+        fprintf(file, ERROR "ERROR: ");
+        va_list va;
+        va_start(va, format);
+        vfprintf(file, format, va);
+        va_end(va);
+        fprintf(file, "\n%s", RESET);
+    }
+}
+// Aborts
+void NORETURN log_fatal(char const *format, ...) {
+    for (usz i = 0; i < log_files.count; i++) {
+        FILE *file = log_files.items[i];
+        fprintf(file, FATAL "FATAL: ");
+        va_list va;
+        va_start(va, format);
+        vfprintf(file, format, va);
+        va_end(va);
+        fprintf(file, "\n%s", RESET);
+        // Flush so that the abort message is not colored.
+        fflush(file);
+    }
+    abort();
 }

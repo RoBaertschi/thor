@@ -241,6 +241,13 @@ str tokens_token_str(str input, Tokens *t, Index idx) {
     return to_strl(input.ptr + t->tokens[idx].pos, t->tokens[idx].len);
 }
 
+char *tokens_token_cstr(str input, Tokens *t, Index idx) {
+    str str = to_strl(input.ptr + t->tokens[idx].pos, t->tokens[idx].len);
+    char *cstr = to_cstr(str);
+    str_destroy(str);
+    return cstr;
+}
+
 int extra_data_integer(Tokens *t, TokenExtraDataIndex i) {
     assert(t->extra_data.len > i);
     assert(t->extra_data.data[i].type == EXTRA_DATA_INTEGER);

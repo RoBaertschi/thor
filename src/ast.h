@@ -45,7 +45,7 @@ struct NodeExtraData {
     } data;
 };
 
-// The TokenIndex 0 is the None Token, it means that an optional element is not
+// The Index 0 is the None Token, it means that an optional element is not
 // there.
 
 #define NODE(name) NODE_TYPE_##name
