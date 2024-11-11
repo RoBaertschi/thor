@@ -58,3 +58,5 @@
         for (size_t i = 0; i < item_size; i++)             \
             da_append((da), items[i]);                     \
     } while (0);
+
+#define da_destroy(da) free((da)->items)

@@ -7,9 +7,9 @@
 
 enum AnalyseScopeType {
     // Can contain functions but no variables
-    ANALY_SCOPE_TYPE_TOP_LEVEL,
+    ANALYSE_SCOPE_TYPE_TOP_LEVEL,
     // Cannot contain functions but can contain variables
-    ANALY_SCOPE_TYPE_FUNCTION,
+    ANALYSE_SCOPE_TYPE_FUNCTION,
 };
 typedef enum AnalyseScopeType AnalyseScopeType;
 
@@ -42,9 +42,17 @@ struct AnalyseFunction {
     } argument_types;
 };
 
+typedef struct AnalyseVariable AnalyseVariable;
+struct AnalyseVariable {
+    UT_hash_handle hh;
+    char          *name;
+    Type           type;
+};
+
 typedef struct AnalyseScope AnalyseScope;
 struct AnalyseScope {
     AnalyseFunction *functions;
+    AnalyseVariable *variables;
 
     Index            super_scope;
     // The corresponding node, function node for function, 0 for top  levels
