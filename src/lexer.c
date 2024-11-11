@@ -11,7 +11,7 @@
 static keyword_to_token *keyword_to_tokens = NULL;
 static keyword_to_token *k2ts_mem          = NULL;
 
-void init_keyword_to_tokens(void) {
+void                     init_keyword_to_tokens(void) {
     keyword_to_token k2ts[] = {
         {.keyword = "fn", .token = TOKEN_TYPE_FN}
     };
@@ -114,7 +114,7 @@ bool is_ident_char(char ch) {
     return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
 }
 
-bool is_number(char ch) { return '0' <= ch && ch <= '9'; }
+bool  is_number(char ch) { return '0' <= ch && ch <= '9'; }
 
 Token lexer_read_identifier(Lexer *l, Tokens *t) {
     usz pos = l->pos;
@@ -242,7 +242,7 @@ str tokens_token_str(str input, Tokens *t, Index idx) {
 }
 
 char *tokens_token_cstr(str input, Tokens *t, Index idx) {
-    str str = to_strl(input.ptr + t->tokens[idx].pos, t->tokens[idx].len);
+    str   str  = to_strl(input.ptr + t->tokens[idx].pos, t->tokens[idx].len);
     char *cstr = to_cstr(str);
     str_destroy(str);
     return cstr;

@@ -194,7 +194,7 @@ ParseFunctionArgumentsResult parse_arguments(Parser *p) {
         name_index = p->cur_token;
         TRY(parser_expect_peek(p, TOKEN_TYPE_IDENTIFIER), ParseIndexResult,
             ParseFunctionArgumentsResult);
-        type_index = p->cur_token;
+        type_index           = p->cur_token;
         FunctionArgument arg = {.type = type_index, .name = name_index};
         da_append(&args, arg);
         if (parser_peek_tok(p)->type != TOKEN_TYPE_COMMA) {
@@ -266,10 +266,10 @@ ParseNodeResult parse_function_defintition(Parser *p) {
     da_append(&p->cur_module.extra_data, extra_data);
     Index ed_idx = p->cur_module.extra_data.count - 1;
 
-    Node node = {
-        .data       = {.lhs = ed_idx, .rhs = block_idx},
-        .type       = NODE_TYPE_FUNCTION_DEFINITION,
-        .main_token = main_token,
+    Node  node   = {
+           .data       = {.lhs = ed_idx, .rhs = block_idx},
+           .type       = NODE_TYPE_FUNCTION_DEFINITION,
+           .main_token = main_token,
     };
 
     return (ParseNodeResult){.type = PARSE_RESULT_TYPE_OK, .data.ok = node};

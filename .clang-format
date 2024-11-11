@@ -14,9 +14,9 @@ IncludeCategories:
 
 
 AlignArrayOfStructures: Left
-AlignConsecutiveAssignments: Consecutive
-AlignConsecutiveBitFields: Consecutive
-AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
+AlignConsecutiveBitFields: AcrossEmptyLinesAndComments
+AlignConsecutiveDeclarations: AcrossEmptyLinesAndComments
 AlignEscapedNewlines: Left
 
 IndentCaseLabels: true

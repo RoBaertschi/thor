@@ -7,7 +7,7 @@ enum NodeExtraDataType {
     NODE_EXTRA_DATA_FUNCTION_PROTOTYPE,
     NODE_EXTRA_DATA_BLOCK,
 };
-typedef enum NodeExtraDataType NodeExtraDataType;
+typedef enum NodeExtraDataType  NodeExtraDataType;
 
 typedef struct FunctionArgument FunctionArgument;
 struct FunctionArgument {
@@ -69,7 +69,7 @@ enum NodeType {
     // main_token is the eof token
     NODE(EOF),
 };
-typedef enum NodeType NodeType;
+typedef enum NodeType   NodeType;
 
 typedef struct NodeData NodeData;
 struct NodeData {

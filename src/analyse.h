@@ -19,7 +19,7 @@ enum AnalyseScopeType {
     // Cannot contain functions but can contain variables
     ANALYSE_SCOPE_TYPE_FUNCTION,
 };
-typedef enum AnalyseScopeType AnalyseScopeType;
+typedef enum AnalyseScopeType      AnalyseScopeType;
 
 typedef struct AnalyseVariableData AnalyseVariableData;
 struct AnalyseVariableData {
@@ -27,12 +27,12 @@ struct AnalyseVariableData {
     char          *name;
     // TODO: Custom types, make this an uint32_t and anything that is not in the
     // enum is a custom type id
-    BuiltinType type;
+    BuiltinType    type;
 };
 
 typedef struct AnalyseScope AnalyseScope;
 struct AnalyseScope {
-    AnalyseScopeType type;
+    AnalyseScopeType            type;
 
     // ut hash maps
     struct AnalyseFunctionData *functions;
@@ -44,8 +44,8 @@ typedef struct AnalyseFunctionData AnalyseFunctionData;
 struct AnalyseFunctionData {
     UT_hash_handle hh;
     // Key
-    char *name;
-    Index scope;
+    char          *name;
+    Index          scope;
 };
 
 typedef struct AnalyseData AnalyseData;

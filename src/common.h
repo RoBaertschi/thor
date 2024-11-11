@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "uthash.h"
+
 #ifndef NORETURN
 #ifdef __GNUC__
 #define NORETURN __attribute__((noreturn))
@@ -29,6 +31,16 @@ typedef int32_t   i32;
 typedef int64_t   i64;
 typedef ptrdiff_t isz;
 
+#define HASH_FIND_USZ(head, findusz, out) \
+    HASH_FIND(hh, head, findusz, sizeof(usz), out)
+#define HASH_ADD_USZ(head, uszfield, add) \
+    HASH_ADD(hh, head, uszfield, sizeof(usz), add)
+#define HASH_REPLACE_USZ(head, uszfield, add, replaced) \
+    HASH_REPLACE(hh, head, uszfield, sizeof(usz), add, replaced)
+
+// NOTE: str's are completly immutable. Every mutation should make a copy, this
+// will allow for just coping the struct around without having to copy the whole
+// string.
 typedef struct str str;
 struct str {
     char *ptr;
@@ -41,15 +53,15 @@ char *to_cstr_in_string_pool(str str);
 // You will have to call free() on the result.
 char *to_cstr(str str);
 // Converts a String Literal or Normal String to a str.
-str  to_str(char const *s);
-str  to_strl(char const *s, usz len);
-str  str_clone(str s);
-void str_destroy(str s);
+str   to_str(char const *s);
+str   to_strl(char const *s, usz len);
+str   str_clone(str s);
+void  str_destroy(str s);
 
-bool                                          str_equal(str s1, str s2);
-str __attribute__((__format__(printf, 1, 2))) str_format(char const *format,
-                                                         ...);
-str str_format_va(char const *format, va_list va);
+bool  str_equal(str s1, str s2);
+str   str_format(char const *format, ...)
+    __attribute__((__format__(printf, 1, 2)));
+str  str_format_va(char const *format, va_list va);
 // Prints the provided str to file
 void str_fprint(FILE *file, str to_print);
 void str_fprintln(FILE *file, str to_print);

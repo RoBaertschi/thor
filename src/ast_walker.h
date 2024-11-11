@@ -62,10 +62,10 @@ struct AstWalker {
     ast_walker_variable_declaration_callback variable_declaration;
     ast_walker_eof_callback                  eof;
 
-    Module *m;
-    Tokens *t;
-    str    *input;
-    void   *user_data;
+    Module                                  *m;
+    Tokens                                  *t;
+    str                                     *input;
+    void                                    *user_data;
 };
 
 void ast_walker_walk(AstWalker *aw);

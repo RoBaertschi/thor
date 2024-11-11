@@ -19,7 +19,7 @@ enum ParseResultType {
     // invalid token ist saved in invalid token.
     PARSE_RESULT_TYPE_EXPECTED_FUNCTION_ARGUMENT_LIST,
 };
-typedef enum ParseResultType ParseResultType;
+typedef enum ParseResultType        ParseResultType;
 
 typedef struct UnexpectedTokenError UnexpectedTokenError;
 struct UnexpectedTokenError {
@@ -76,7 +76,6 @@ str parse_error_str(ParseResultType type, ParseErrors errors);
         output_name = tried.data.ok;                                      \
     } while (0);
 
-
 typedef struct Parser Parser;
 struct Parser {
     str    input;
@@ -90,5 +89,5 @@ Parser            parser_create(Tokens t, str input);
 ParseModuleResult parser_parse_module(Parser *p);
 void              parser_destroy(Parser p);
 
-void module_destroy(Module m);
-void print_module(Parser *p, Module *m);
+void              module_destroy(Module m);
+void              print_module(Parser *p, Module *m);

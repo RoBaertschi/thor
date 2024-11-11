@@ -1,7 +1,9 @@
 #include "analyse.h"
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "ast.h"
 #include "ast_walker.h"
 #include "common.h"
@@ -136,14 +138,14 @@ bool walk_variable_declaration(void *data, AstWalker *awd,
 bool walk_function_definition(void *data, AstWalker *awd,
                               FunctionDefinition fd) {
 
-    AnalyWalkerData *wdata         = data;
+    AnalyWalkerData *wdata       = data;
     Index            super_scope = wdata->current_scope;
 
-    wdata->current_scope = insert_new_scope(
+    wdata->current_scope         = insert_new_scope(
         wdata, (AnalyseScope){.super_scope = super_scope,
-                              .variables   = NULL,
-                              .functions   = NULL,
-                              .type        = ANALYSE_SCOPE_TYPE_FUNCTION});
+                                      .variables   = NULL,
+                                      .functions   = NULL,
+                                      .type        = ANALYSE_SCOPE_TYPE_FUNCTION});
     for (usz i = 0; i < fd.fpd->args.count; i++) {
         AnalyseResult result =
             check_type(wdata, awd, fd.fpd->args.items[i].type);

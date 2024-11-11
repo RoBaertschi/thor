@@ -137,10 +137,11 @@ typedef unsigned char uint8_t;
 #endif
 
 /* initial number of buckets */
-#define HASH_INITIAL_NUM_BUCKETS 32U     /* initial number of buckets        */
-#define HASH_INITIAL_NUM_BUCKETS_LOG2 5U /* lg2 of initial number of buckets \
-                                          */
-#define HASH_BKT_CAPACITY_THRESH 10U     /* expand when bucket count reaches */
+#define HASH_INITIAL_NUM_BUCKETS 32U /* initial number of buckets        */
+#define HASH_INITIAL_NUM_BUCKETS_LOG2                                    \
+    5U                               /* lg2 of initial number of buckets \
+                                      */
+#define HASH_BKT_CAPACITY_THRESH 10U /* expand when bucket count reaches */
 
 /* calculate the element whose hash handle address is hhp */
 #define ELMT_FROM_HH(tbl, hhp) ((void *)(((char *)(hhp)) - ((tbl)->hho)))
@@ -550,6 +551,18 @@ typedef unsigned char uint8_t;
     HASH_ADD(hh, head, intfield, sizeof(int), add)
 #define HASH_REPLACE_INT(head, intfield, add, replaced) \
     HASH_REPLACE(hh, head, intfield, sizeof(int), add, replaced)
+
+// +thor
+
+#define HASH_FIND_SIZE_T(head, findsizet, out) \
+    HASH_FIND(hh, head, findint, sizeof(size_t), out)
+#define HASH_ADD_SIZE_T(head, intfield, add) \
+    HASH_ADD(hh, head, intfield, sizeof(size_t), add)
+#define HASH_REPLACE_SIZE_T(head, intfield, add, replaced) \
+    HASH_REPLACE(hh, head, intfield, sizeof(size_t), add, replaced)
+
+// -thor
+
 #define HASH_FIND_PTR(head, findptr, out) \
     HASH_FIND(hh, head, findptr, sizeof(void *), out)
 #define HASH_ADD_PTR(head, ptrfield, add) \
@@ -790,7 +803,7 @@ typedef unsigned char uint8_t;
         unsigned const char *_sfh_key = (unsigned const char *)(key);       \
         uint32_t             _sfh_tmp, _sfh_len = (uint32_t)keylen;         \
                                                                             \
-        unsigned _sfh_rem = _sfh_len & 3U;                                  \
+        unsigned             _sfh_rem = _sfh_len & 3U;                      \
         _sfh_len >>= 2;                                                     \
         hashv = 0xcafebabeu;                                                \
                                                                             \
@@ -1203,7 +1216,7 @@ typedef struct UT_hash_bucket {
      * It is better to let its chain length grow to a longer yet-still-bounded
      * value, than to do an O(n) bucket expansion too often.
      */
-    unsigned expand_mult;
+    unsigned               expand_mult;
 
 } UT_hash_bucket;
 
@@ -1220,13 +1233,13 @@ typedef struct UT_hash_table {
 
     /* in an ideal situation (all buckets used equally), no bucket would have
      * more than ceil(#items/#buckets) items. that's the ideal chain length. */
-    unsigned ideal_chain_maxlen;
+    unsigned  ideal_chain_maxlen;
 
     /* nonideal_items is the number of items in the hash whose chain position
      * exceeds the ideal chain maxlen. these items pay the penalty for an uneven
      * hash distribution; reaching them in a chain traversal takes >ideal steps
      */
-    unsigned nonideal_items;
+    unsigned  nonideal_items;
 
     /* ineffective expands occur when a bucket doubling was performed, but
      * afterward, more than half the items in the hash had nonideal chain
@@ -1234,7 +1247,7 @@ typedef struct UT_hash_table {
      * further expansion, as it's not helping; this happens when the hash
      * function isn't a good fit for the key domain. When expansion is inhibited
      * the hash will still work, albeit no longer in constant time. */
-    unsigned ineff_expands, noexpand;
+    unsigned  ineff_expands, noexpand;
 
     uint32_t signature; /* used only to find hash tables in external analysis */
 #ifdef HASH_BLOOM

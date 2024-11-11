@@ -9,8 +9,7 @@ void ast_walker_walk_block(AstWalker *aw, Node *node) {
     Index      ed_idx = node->data.lhs;
     BlockData *bd     = &aw->m->extra_data.items[ed_idx].data.block;
     Block      block  = {.main_token = node->main_token, .bd = bd};
-    bool       continue_ =
-        SAFE_CALLBACK_CALL(aw->block, aw->user_data, aw, block);
+    bool continue_    = SAFE_CALLBACK_CALL(aw->block, aw->user_data, aw, block);
 
     if (!continue_) {
         return;
@@ -27,8 +26,8 @@ void ast_walker_walk_function_definition(AstWalker *aw, Node *node) {
         &aw->m->extra_data.items[ed_idx].data.function_prototype;
     FunctionDefinition fd = {
         .block = node->data.rhs, .main_token = node->main_token, .fpd = fpd};
-    bool continue_ = SAFE_CALLBACK_CALL(aw->function_definition, aw->user_data,
-                                        aw, fd);
+    bool continue_ =
+        SAFE_CALLBACK_CALL(aw->function_definition, aw->user_data, aw, fd);
 
     if (!continue_) {
         return;
@@ -48,8 +47,8 @@ void ast_walker_walk_variable_declaration(AstWalker *aw, Node *node) {
     VariableDeclaration vd = {.main_token = node->main_token,
                               .type       = node->data.lhs,
                               .expr       = node->data.rhs};
-    bool continue_ = SAFE_CALLBACK_CALL(aw->variable_declaration, aw->user_data,
-                                        aw, vd);
+    bool                continue_ =
+        SAFE_CALLBACK_CALL(aw->variable_declaration, aw->user_data, aw, vd);
 
     if (!continue_) {
         return;

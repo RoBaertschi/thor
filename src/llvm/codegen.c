@@ -4,12 +4,12 @@
 #include <llvm-c/Types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "analyse.h"
 #include "ast.h"
 #include "ast_walker.h"
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
-#include "analyse.h"
 
 CodeGenerator code_gen_create(Tokens t, Parser p, Module m) {
     LLVMContextRef context     = LLVMContextCreate();
@@ -20,13 +20,13 @@ CodeGenerator code_gen_create(Tokens t, Parser p, Module m) {
     free(module_name);
 
     return (CodeGenerator){
-        .thor_module = m,
-        .parser      = p,
-        .tokens      = t,
+        .thor_module     = m,
+        .parser          = p,
+        .tokens          = t,
 
-        .context = context,
-        .builder = builder,
-        .module  = module,
+        .context         = context,
+        .builder         = builder,
+        .module          = module,
 
         .named_variables = NULL,
     };
@@ -53,11 +53,11 @@ void code_gen(CodeGenerator *cg) {
     ast_walker_walk(&walker);
 }
 
-void cg_top_level(CodeGenerator *cg, Node *node);
+void         cg_top_level(CodeGenerator *cg, Node *node);
 
-void cg_module(CodeGenerator *cg) {}
+void         cg_module(CodeGenerator *cg) {}
 
-void cg_top_level(CodeGenerator *cg, Node *node) {}
+void         cg_top_level(CodeGenerator *cg, Node *node) {}
 
 LLVMValueRef cg_integer_literal(CodeGenerator *cg, Node *node) {
     int integer = extra_data_integer(
@@ -79,4 +79,3 @@ LLVMValueRef cg_get_value(CodeGenerator *cg, Node *node) {
             UNREACHABLE("not an expression node");
     }
 }
-

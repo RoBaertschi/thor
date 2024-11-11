@@ -9,7 +9,7 @@ enum TokenExtraDataType {
 };
 typedef enum TokenExtraDataType TokenExtraDataType;
 
-typedef struct TokenExtraData TokenExtraData;
+typedef struct TokenExtraData   TokenExtraData;
 struct TokenExtraData {
     TokenExtraDataType type;
     union {
@@ -36,7 +36,7 @@ void print_tokens(Tokens *t);
 enum LexerFatalError {
     LEXER_FATAL_ERROR_MALLOC_FAILED,
 };
-typedef enum LexerFatalError LexerFatalError;
+typedef enum LexerFatalError    LexerFatalError;
 
 typedef struct keyword_to_token keyword_to_token;
 struct keyword_to_token {
@@ -58,16 +58,15 @@ struct Lexer {
     LexerFatalErrorCallback fatal_error_cb;
 };
 
-
 Lexer  lexer_create(str input, LexerFatalErrorCallback fatal_error_cb);
 void   lexer_destroy(Lexer lexer);
 Tokens lexer_lex_tokens(Lexer *l);
 
 keyword_to_token *get_keyword_to_tokens_hash_map(void);
-void free_global_resources(void);
+void              free_global_resources(void);
 
-str    tokens_token_str(str input, Tokens *t, Index idx);
-char *tokens_token_cstr(str input, Tokens *t, Index idx);
-void   tokens_destroy(Tokens t);
+str               tokens_token_str(str input, Tokens *t, Index idx);
+char             *tokens_token_cstr(str input, Tokens *t, Index idx);
+void              tokens_destroy(Tokens t);
 
-int extra_data_integer(Tokens *t, TokenExtraDataIndex i);
+int               extra_data_integer(Tokens *t, TokenExtraDataIndex i);
