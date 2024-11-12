@@ -6,7 +6,7 @@ enum BuiltinType {
 
 typedef enum BuiltinType BuiltinType;
 
-typedef struct Type Type;
+typedef struct Type      Type;
 struct Type {
     BuiltinType type;
 };

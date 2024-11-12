@@ -129,14 +129,15 @@ void free_module_analyse(ModuleAnalyse *module_analyse) {
 
     // Node to scope
     NodeToScope *node_to_scope, *node_to_scope_tmp;
-    HASH_ITER(hh, module_analyse->nodes_to_scopes, node_to_scope, node_to_scope_tmp) {
+    HASH_ITER(hh, module_analyse->nodes_to_scopes, node_to_scope,
+              node_to_scope_tmp) {
         HASH_DEL(module_analyse->nodes_to_scopes, node_to_scope);
         free(node_to_scope);
     }
 
     // Scopes
     for (usz i = 0; i < module_analyse->scopes.count; i++) {
-        AnalyseScope *scope = &module_analyse->scopes.items[i];
+        AnalyseScope    *scope = &module_analyse->scopes.items[i];
         AnalyseVariable *var, *var_tmp;
         HASH_ITER(hh, scope->variables, var, var_tmp) {
             HASH_DEL(scope->variables, var);
@@ -159,7 +160,8 @@ void free_module_analyse(ModuleAnalyse *module_analyse) {
 
     // Types
     TypeNameToType *type_name_to_type, *type_name_to_type_tmp;
-    HASH_ITER(hh, module_analyse->types, type_name_to_type, type_name_to_type_tmp) {
+    HASH_ITER(hh, module_analyse->types, type_name_to_type,
+              type_name_to_type_tmp) {
         HASH_DEL(module_analyse->types, type_name_to_type);
         free(type_name_to_type->type_name);
         free(type_name_to_type);
@@ -176,10 +178,145 @@ void analyse_data_init_types(AnalyseData *analyse_data) {
     HASH_ADD_STR(analyse_data->module_analyse.types, type_name, u32);
 }
 
-void analyse_block(AnalyseData *analyse_data, Node *node, Index node_index) {}
+// Checks recursevly, if we are in an function body
+bool in_function_body(AnalyseData *analyse_data, Index scope) {
+    if (analyse_data->module_analyse.root_scope == scope) {
+        return false;
+    }
+
+    if (analyse_data->module_analyse.scopes.items[scope].type ==
+        ANALYSE_SCOPE_TYPE_FUNCTION) {
+        return true;
+    }
+
+    return in_function_body(
+        analyse_data,
+        analyse_data->module_analyse.scopes.items[scope].super_scope);
+}
+
+bool function_allowed_in_scope(AnalyseData *analyse_data, Index scope) {
+    return !in_function_body(analyse_data, scope);
+}
+
+bool is_identifier_in_use(AnalyseData *analyse_data, Node *node, Index scope) {
+    char *name = tokens_token_cstr(analyse_data->input, analyse_data->t,
+                                   node->main_token);
+    AnalyseFunction *func;
+    HASH_FIND_STR(analyse_data->module_analyse.scopes.items[scope].functions,
+                  name, func);
+
+    AnalyseVariable *var;
+    HASH_FIND_STR(analyse_data->module_analyse.scopes.items[scope].variables,
+                  name, var);
+
+    free(name);
+    if (func == NULL && var == NULL) {
+        if (scope == analyse_data->module_analyse.root_scope) {
+            return false;
+        } else {
+            return is_identifier_in_use(analyse_data, node, scope);
+        }
+    }
+
+    return true;
+}
+
+void analyse_node(AnalyseData *analyse_data, Node *node, Index node_index);
+
+bool analyse_expression(AnalyseData *analyse_data, Node *node, Index node_index,
+                        Type *out_type) {
+    switch (node->type) {
+        case NODE_TYPE_INTEGER_LITERAL:
+            *out_type = (Type){.type = BUILTIN_TYPE_U32};
+            return true;
+        case NODE_TYPE_BLOCK:
+        case NODE_TYPE_FUNCTION_DEFINITION:
+        case NODE_TYPE_VARIABLE_DECLARATION:
+        case NODE_TYPE_EOF:
+            return false;
+    }
+    return false;
+}
+
+void analyse_variable(AnalyseData *analyse_data, Node *node, Index node_index) {
+    assert(node->type == NODE_TYPE_VARIABLE_DECLARATION);
+    if (is_identifier_in_use(analyse_data, node, analyse_data->cur_scope)) {
+        AnalyseError error = {
+            .node = node_index,
+            .type = ANALYSE_ERROR_IDENTIFIER_ALREADY_IN_USE,
+        };
+        da_append(&analyse_data->module_analyse.errors, error);
+
+        return;
+    }
+
+    Type expression_type;
+    if (!analyse_expression(analyse_data, &analyse_data->m->nodes.items[node->data.rhs], node->data.rhs, &expression_type)) {
+        AnalyseError error = {
+            .node = node_index,
+            .type = ANALYSE_ERROR_EXPECTED_EXPRESSION_FOR_VARIABLE_DECLARATION,
+        };
+        da_append(&analyse_data->module_analyse.errors, error);
+
+        return;
+    }
+
+    if (node->data.lhs != 0) {
+        Type variable_type;
+        if (!check_type(analyse_data, node->data.lhs, &variable_type)) {
+            AnalyseError error = {
+                .node = node_index,
+                .type = ANALYSE_ERROR_VARIABLE_UNKOWN_TYPE,
+            };
+            da_append(&analyse_data->module_analyse.errors, error);
+            return;
+        }
+
+        if (variable_type.type != expression_type.type) {
+            AnalyseError error = {
+                .node = node_index,
+                .type = ANALYSE_ERROR_VARIABLE_EXPRESSION_DIFFRENT_TYPE,
+            };
+            da_append(&analyse_data->module_analyse.errors, error);
+            return;
+        }
+    }
+
+    AnalyseVariable variable = {
+        .type = expression_type,
+        .name = tokens_token_cstr(analyse_data->input, analyse_data->t, node->main_token)
+    };
+
+    AnalyseVariable *variable_mem = malloc(sizeof(AnalyseVariable));
+    *variable_mem = variable;
+
+    HASH_ADD_STR(analyse_data->module_analyse.scopes.items[analyse_data->cur_scope].variables, name, variable_mem);
+}
+
+void analyse_block(AnalyseData *analyse_data, Node *node, Index node_index) {
+    assert(node->type == NODE_TYPE_BLOCK);
+    Index      extra_data = node->data.lhs;
+    BlockData *block =
+        &analyse_data->m->extra_data.items[extra_data].data.block;
+    Index block_scope;
+    begin_scope(analyse_data, &block_scope, node_index,
+                ANALYSE_SCOPE_TYPE_BLOCK);
+
+    for (usz i = 0; i < block->count; i++) {
+        analyse_node(analyse_data,
+                     &analyse_data->m->nodes.items[block->items[i]],
+                     block->items[i]);
+    }
+
+    end_scope(analyse_data, block_scope);
+}
 
 void analyse_function_definition(AnalyseData *analyse_data, Node *node,
                                  Index node_index) {
+
+    add_function_to_scope(analyse_data, analyse_data->cur_scope, node,
+                          node_index);
+
     Index function_scope;
     assert(node->type == NODE_TYPE_FUNCTION_DEFINITION);
     Index                  extra_data = node->data.lhs;
@@ -204,9 +341,11 @@ void analyse_function_definition(AnalyseData *analyse_data, Node *node,
             .name = tokens_token_cstr(analyse_data->input, analyse_data->t,
                                       function_prototype->args.items[i].name)};
         AnalyseVariable *analyse_variable_mem = malloc(sizeof(AnalyseVariable));
-        *analyse_variable_mem = analyse_variable;
+        *analyse_variable_mem                 = analyse_variable;
 
-        HASH_ADD_STR(analyse_data->module_analyse.scopes.items[function_scope].variables, name, analyse_variable_mem);
+        HASH_ADD_STR(
+            analyse_data->module_analyse.scopes.items[function_scope].variables,
+            name, analyse_variable_mem);
     }
 
     Node *block = &analyse_data->m->nodes.items[node->data.rhs];
@@ -221,8 +360,6 @@ void analyse_top_level_node(AnalyseData *analyse_data, Index node_index) {
 
     switch (node->type) {
         case NODE_TYPE_FUNCTION_DEFINITION:
-            add_function_to_scope(analyse_data, analyse_data->cur_scope, node,
-                                  node_index);
             analyse_function_definition(analyse_data, node, node_index);
         case NODE_TYPE_EOF:
             return;
@@ -235,6 +372,49 @@ void analyse_top_level_node(AnalyseData *analyse_data, Index node_index) {
                 .node = node_index,
             };
             da_append(&analyse_data->module_analyse.errors, error);
+            return;
+    }
+}
+
+void analyse_node(AnalyseData *analyse_data, Node *node, Index node_index) {
+    AnalyseError error;
+    switch (node->type) {
+
+        case NODE_TYPE_BLOCK:
+            analyse_block(analyse_data, node, node_index);
+            return;
+        case NODE_TYPE_FUNCTION_DEFINITION:
+            if (!function_allowed_in_scope(analyse_data,
+                                           analyse_data->cur_scope)) {
+                AnalyseError error = {
+                    .node = node_index,
+                    .type = ANALYSE_ERROR_FUNCTION_NOT_ALLOWED_IN_SCOPE,
+                };
+                da_append(&analyse_data->module_analyse.errors, error);
+                return;
+            }
+            analyse_function_definition(analyse_data, node, node_index);
+            return;
+        case NODE_TYPE_INTEGER_LITERAL:
+            error = (AnalyseError){
+                .node = node_index,
+                .type = ANALYSE_ERROR_INVALID_NODE,
+            };
+            da_append(&analyse_data->module_analyse.errors, error);
+            return;
+        case NODE_TYPE_VARIABLE_DECLARATION:
+            if (!in_function_body(analyse_data, analyse_data->cur_scope)) {
+                error = (AnalyseError){
+                    .type =
+                        ANALYSE_ERROR_VARIABLE_NOT_ALLOWED_IN_NONE_FUNCTION_SCOPE,
+                    .node = node_index,
+                };
+                da_append(&analyse_data->module_analyse.errors, error);
+                return;
+            }
+            analyse_variable(analyse_data, node, node_index);
+            return;
+        case NODE_TYPE_EOF:
             return;
     }
 }
